@@ -1,4 +1,4 @@
-# InuzukiProject 開発ガイド
+# NekozukiProject 開発ガイド
 
 このリポジトリは、4人程度のチームで Spring Boot とデータベースを使う Web アプリケーションを開発するためのものです。この README は、学生が上から順に読み、チームで実行する手順書です。
 
