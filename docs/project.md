@@ -3,6 +3,7 @@
 ## 開発者（GitHub名）
 - igaki
 - kiyoshi-honda
+- fukuyasu
 
 ## 開発するアプリケーションの条件
 
@@ -24,7 +25,7 @@ PortableGit Bash を起動して開発する。JDK、Gradle、GitHub CLIのPATH�
 
 ## 現在の構成
 
-- アプリ本体: `inujanken/`
+- アプリ本体: `nekoselect/`
 - 技術: Java 25 / Spring Boot 4 / Thymeleaf / Spring Security / MyBatis / H2
 
 ## プロジェクトで守る原則

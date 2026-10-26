@@ -1,5 +1,5 @@
 ---
-applyTo: "inujanken/src/test/**/*.java"
+applyTo: "nekoselect/src/test/**/*.java"
 ---
 
 # テスト
@@ -7,4 +7,3 @@ applyTo: "inujanken/src/test/**/*.java"
 - 各テストはIssueのACの少なくとも一つに対応させる。
 - 成功例だけでなく、必要な失敗例や境界値も検証する。
 - テスト名で、条件と期待する振る舞いを表す。
-
