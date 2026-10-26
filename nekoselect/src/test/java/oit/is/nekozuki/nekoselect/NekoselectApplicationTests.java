@@ -1,4 +1,4 @@
-package oit.is.nekodaisuki.nekoselect;
+package oit.is.nekozuki.nekoselect;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

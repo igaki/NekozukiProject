@@ -9,7 +9,7 @@ PRを作成・pushしない。一度に複数段階の質問をしない。
 2. Issue本文のAC、git差分、直近のcommitを確認する。
 3. 最初に「何を実装したか」と「実装上で苦労した点」を質問して停止する。
 4. 回答後にIssueのAC一覧を示し、ACごとの確認結果を質問して停止する。
-5. 回答後に `gradle test` の実行結果を質問して停止する。
+5. 回答後に、`docs/project.md` の `app_dir` のフォルダで実行した `./gradlew test` の結果を質問して停止する。
 6. 回答を得たら、`docs/temp/` がなければ作成し、`docs/temp/pr-<Issue番号>.md` を作成または上書きする。
 7. PR本文は次の見出しを各1回ずつ使い、すべてに具体的な内容を書く。`関連Issue` には実在するIssue番号を含める。Issueを完了させる `Closes #<Issue番号>` は、そのIssueがOpenの場合だけ使い、完了済みIssueの参照には `Refs #<Issue番号>` を使う。
 

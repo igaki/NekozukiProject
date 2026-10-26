@@ -1,4 +1,4 @@
-# NekozukiProject 環境利用マニュアル
+# Spring Boot チーム開発テンプレート
 
 4人程度のチームで，Spring Boot とデータベースを使う Web アプリケーションをAIエージェントと一緒に開発するための**手順書**です．上から順に読み，そのとおりに一度は実行して見ましょう．2回目以降も実行するかどうかはチームごとに好きに決めてもらって構いません．この授業ではAIエージェントを含む生成AI利用有無は成績に一切影響しません．
 
@@ -17,20 +17,22 @@
 
 ## 0. このマニュアル全体の流れ
 
-1. 要求分析(ブレインストーミング)
-2. 計画 — a. タスク分割 / b. Issue の作成・登録
-3. 実装とテスト，PR 作成・登録
-4. レビューとマージ
-5. デバッグ
+1. プロジェクトの初期化
+2. 要求分析(ブレインストーミング)
+3. 計画 — a. タスク分割 / b. Issue の作成・登録
+4. 実装とテスト，PR 作成・登録
+5. レビューとマージ
+6. デバッグ
 
 | 工程 | 使うもの | 正式に残る記録(文書) |
 | --- | --- | --- |
-| 1. ブレインストーミング | `/brainstorm`，`docs/project.md` | `docs/temp/brainstorm/*.md`(下書き) |
-| 2a. タスク分割 | `/plan-issues`，テンプレート制約 | `docs/temp/issues.md`(下書き) |
-| 2b. Issue 登録 | Issue Form，登録スクリプト | **GitHub Issue** |
-| 3. 実装と PR | `implement-issue` Skill，`/prepare-pr` | コード，テスト，コミット，**GitHub PR** |
-| 4. レビュー | PR テンプレート，CI，`/review-pr` | PR 本文，コメント，承認，CI 結果 |
-| 5. デバッグ | `debug` Skill，テスト，ログ | 回帰テスト，修正 PR |
+| 1. 初期化 | `/init-project`，`init-project.sh` | `docs/project.md` のプロジェクト設定 |
+| 2. ブレインストーミング | `/brainstorm`，`docs/project.md` | `docs/temp/brainstorm/*.md`(下書き) |
+| 3a. タスク分割 | `/plan-issues`，テンプレート制約 | `docs/temp/issues.md`(下書き) |
+| 3b. Issue 登録 | Issue Form，登録スクリプト | **GitHub Issue** |
+| 4. 実装と PR | `implement-issue` Skill，`/prepare-pr` | コード，テスト，コミット，**GitHub PR** |
+| 5. レビュー | PR テンプレート，CI，`/review-pr` | PR 本文，コメント，承認，CI 結果 |
+| 6. デバッグ | `debug` Skill，テスト，ログ | 回帰テスト，修正 PR |
 
 
 `docs/temp/` は AI と相談するための下書きで，**Git に登録しません**．最終的な根拠は Issue，PR，コード，テスト，レビューに残します．
@@ -38,69 +40,48 @@
 > [!WARNING]
 > AC は「何をもって正しいとするか」の唯一の基準です．実装が終わってから都合よく書き換えてはいけません．要求自体が変わった場合だけ，**実装前にチームで相談して**更新します．この規則はデバッグ中も同じです．不具合を隠すための書き換えは禁止です．
 
-**このマニュアルの応答例について**: 以下の「AI の応答例」は，サンプルプロジェクトのコードから，各 Prompt／Skill の指示に従って実行した結果の抜粋です．実際の応答は Issue・差分・テスト結果で変わります．`(省略)` の部分も必ず読み，納得できない点は質問してください．
+**このマニュアルの応答例について**: 以下の「AI の応答例」は，このテンプレートの Prompt／Skill の指示に従って得られる応答の例です．実際の応答は Issue・差分・テスト結果で変わります．`(省略)` の部分も必ず読み，納得できない点は質問してください．
 
 ---
 
-## 1. 開発を始める前の準備
+## 1. プロジェクトを初期化する（プロンプト: `/init-project`）
 
-開発に必要なコマンドを使えることと，出発点のアプリが動くことを確認します．
+`RenameMe` を使わないローカルフォルダ名と GitHub リポジトリ名を決め，学生チームが作成した Spring Boot プロジェクトを検出して設定します．アプリフォルダ名を手入力する必要はありません．
 
 ### 実施の流れ
 
-1. リポジトリのルートで環境を確認する．
-2. GitHub CLI に未ログインならログインする．
-3. アプリフォルダでアプリを起動する．
+1. ローカルフォルダ名と GitHub リポジトリ名を `RenameMe` 以外にする．
+2. Spring Boot プロジェクトを好きな名前で作成する．
+3. Copilot Chat で `/init-project` を選ぶ．
+4. Prompt が SSH remote，GitHub CLI 認証，Spring Boot アプリ，Gradleテスト，main 保護設定を検査する．
+5. 検出したリポジトリ名，アプリ名，アプリフォルダを `docs/project.md` に設定する承認を求められたら，内容を確認して承認する．
+6. 初期化後，アプリ本体と `docs/project.md` を初期コミットする．
+
+### 入力例
+
+```text
+/init-project
+```
 
 ### 実行コマンド
 
-リポジトリのルートで実行します．
+Prompt が実行する検査コマンドは次のとおりです．
 
 ```bash
-git status
-git remote -v
-java -version
-gradle -v
-gh auth status
+bash scripts/harness/init-project.sh --check
 ```
 
-`gh auth status` が失敗した場合は，次を実行してログインします．
+設定更新を承認した場合は，次を実行します．
 
 ```bash
-gh auth login
+bash scripts/harness/init-project.sh --initialize
 ```
 
-次に，出発点のアプリを起動します．`nekoselect` は Spring Boot プロジェクトのアプリフォルダ名（`build.gradle` があるフォルダ）です．
+### 初期化後の確認
 
-```bash
-cd nekoselect
-gradle bootRun
-```
-
-### 確認できた状態
-
-`BUILD SUCCESSFUL` と表示されれば成功です．以降，コマンドは次の場所で実行します．
-
-| 行いたいこと | 実行する場所 |
-| --- | --- |
-| `git`，`gh`，`scripts/...`，`docs/...` | リポジトリのルート |
-| `gradle test`，`gradle bootRun` | `アプリフォルダ` |
-
-> [!WARNING]
-> `git status` に自分が意図していない変更がある場合は，そのまま次の作業を始めないでください．先にコミット，PR 作成，または変更の破棄を担当者と相談します．
-
-### 1-1. プロジェクトの初期設定
-- AGENTS.md
-  - NekozukiProjectがタイトルに残っているので各自のリポジトリ名に変更すること
-  - L8に`nekoselect`があるので各自のアプリフォルダ名に変更すること
-- docs/project.md
-  - アプリ本体として L28に`nekoselect`が残っているので各自のアプリ名に変更すること
-- .github/workflows/ci.yml
-  - L16に`nekoselect`が残っているので，各自のアプリフォルダ名に変更すること
-- .github/instructions/java.instructions.md
-  - L2，L7に`nekoselect`フォルダの記述があるので各自のアプリフォルダ名に修正すること
-- .github/prompts/plan-issues.prompt.md
-  - L88,L89に`nekoselect`フォルダの名前が記述されているので各自のアプリフォルダ名に変更すること
+- `docs/project.md` の `PROJECT-CONFIG` に，検出された `repository_name`，`app_name`，`app_dir` が記録されている．
+- `app_dir` のフォルダで `./gradlew test` が成功している．
+- 以降の `/brainstorm`，`/plan-issues`，Skill，CI は `app_dir` をアプリフォルダとして利用する．
 
 ---
 
@@ -121,8 +102,8 @@ gradle bootRun
 ### 入力例
 
 ```text
-/brainstorm 犬じゃんけんに，友達と同じ対戦ルームに入って，同じ犬と対戦する機能を追加したいです．
-参加する人には，どんな画面や操作が必要かを一緒に考えたいです．
+/brainstorm 学内イベントで，参加者が同じ企画に参加登録できる機能を追加したいです．
+参加する人と主催者には，どんな画面や操作が必要かを一緒に考えたいです．
 ```
 
 ### 相談を進める入力例
@@ -324,12 +305,14 @@ Issue の AC を満たすことを，自動テストと必要に応じたブラ�
 
 ```bash
 git diff
-cd nekoselect
-gradle test
-gradle bootRun
+source scripts/lib/project-config.sh
+APP_DIR="$(project_app_dir docs/project.md)"
+cd "$APP_DIR"
+./gradlew test
+./gradlew bootRun
 ```
 
-`gradle test` が成功したら，`bootRun` を起動したままブラウザで **Issue の AC に対応する操作**を行い，期待する画面・データになることを確認します(例: 満室の AC なら，定員まで参加した後に追加参加を試す)．終了は `Ctrl+C`．
+`./gradlew test` が成功したら，`./gradlew bootRun` を起動したままブラウザで **Issue の AC に対応する操作**を行い，期待する画面・データになることを確認します(例: 満室の AC なら，定員まで参加した後に追加参加を試す)．終了は `Ctrl+C`．
 
 #### 次の工程
 
@@ -342,7 +325,7 @@ AC の確認結果とテスト結果を含む PR 本文の下書きを作成し�
 #### 実施の流れ
 
 1. `/prepare-pr` を選ぶ．
-2. 実装内容，AC ごとの確認結果，`gradle test` の結果を順に回答する．
+2. 実装内容，AC ごとの確認結果，`./gradlew test` の結果を順に回答する．
 3. 作成された `docs/temp/pr-<Issue番号>.md` を確認する．
 
 #### 入力例
@@ -353,7 +336,7 @@ Copilot Chat の入力欄で，`/prepare-pr` を選んでから次のように�
 /prepare-pr このブランチの PR 本文を作成したいです．
 ```
 
-この Prompt は，まず「何を実装したか，どこで苦労したか」を聞き，次に AC ごとの確認結果，最後に `gradle test` の結果を確認します．
+この Prompt は，まず「何を実装したか，どこで苦労したか」を聞き，次に AC ごとの確認結果，最後に `./gradlew test` の結果を確認します．
 
 ### 5-5. Pull Request を登録する(スクリプト:create-pr.sh)
 
@@ -369,7 +352,7 @@ Copilot Chat の入力欄で，`/prepare-pr` を選んでから次のように�
 #### 実行コマンド
 
 ```bash
-cd ..
+cd "$(git rev-parse --show-toplevel)"
 bash scripts/pr/create-pr.sh
 ```
 
@@ -378,8 +361,8 @@ bash scripts/pr/create-pr.sh
 #### 登録後の確認
 
 - コードとテストの差分を自分で説明できる．
-- `gradle test` が成功している．
-- Web UI を変更した場合は `gradle bootRun` で AC を確認した．
+- `./gradlew test` が成功している．
+- Web UI を変更した場合は `./gradlew bootRun` で AC を確認した．
 - PR 本文に関連 Issue，変更内容，AC 確認結果，テスト結果がある．
 
 ---
@@ -451,7 +434,7 @@ AI は確認結果を「必須（マージ前に対応が必要）」「質問�
 
 ```text
 debug Skill を使ってください．
-Issue #12 の AC は「満室なら追加参加できない」ですが，gradle test で次の失敗が出ました: (エラー全文を貼る)
+Issue #12 の AC は「満室なら追加参加できない」ですが，./gradlew test で次の失敗が出ました: (エラー全文を貼る)
 ```
 
 Skill は「期待結果／実際の結果／再現手順／原因候補／候補を区別する確認」を分けて示します．コードを変更する前に，原因，修正範囲，再発防止テストを確認し，承認してから修正を依頼しましょう．
@@ -468,7 +451,7 @@ Skill は「期待結果／実際の結果／再現手順／原因候補／候�
 - 失敗を再現できた，または再現できない理由を説明できる．
 - 修正の理由を説明できる．
 - 同じ失敗を防ぐ回帰テストがある．
-- `gradle test` と影響する AC の確認をやり直した．
+- `./gradlew test` と影響する AC の確認をやり直した．
 
 ### 残すもの
 
@@ -520,6 +503,7 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/<ユーザ�
 
 | 困ったこと | 最初に行うこと |
 | --- | --- |
+| 配布テンプレートを使い始めたい | Copilot Chat で `/init-project` |
 | 何を作るかが曖昧 | Copilot Chat で `/brainstorm` |
 | 機能をどう分けるか迷う | Copilot Chat で `/plan-issues` |
 | Issue を GitHub に登録したい | `bash scripts/issue/register-from-file.sh docs/temp/issues.md` |
@@ -534,13 +518,13 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/<ユーザ�
 
 | 対象 | 見出し | 入力例／実行例 |
 | --- | --- | --- |
-| 環境確認 | 実施の流れ／実行コマンド／確認できた状態 | `git status`，`gradle -v` |
+| 初期化 | 実施の流れ／入力例／初期化後の確認 | `/init-project` |
 | ブレインストーミング | 実施の流れ／入力例／次へ進む前の確認 | `/brainstorm <相談したい内容>` |
 | Issue 分割 | 実施の流れ／入力例／次へ進む前の確認 | `/plan-issues <機能の説明またはブリーフのパス>` |
 | Issue 登録 | 実施の流れ／実行コマンド／登録後の確認 | `bash scripts/issue/register-from-file.sh docs/temp/issues.md` |
 | ブランチ作成 | 実施の流れ／実行コマンド／次の工程 | `bash scripts/issue/ready.sh` |
 | 実装計画 | 実施の流れ／入力例／承認後の作業 | `implement-issue Skill を使って…` |
-| テストと動作確認 | 実施の流れ／実行コマンド／確認できた状態 | `gradle test`，`gradle bootRun` |
+| テストと動作確認 | 実施の流れ／実行コマンド／確認できた状態 | `app_dir` のフォルダで `./gradlew test`，`./gradlew bootRun` |
 | PR 本文作成 | 実施の流れ／入力例／次の工程 | `/prepare-pr このブランチの PR 本文を作成したいです。` |
 | PR 登録 | 実施の流れ／実行コマンド／登録後の確認 | `bash scripts/pr/create-pr.sh` |
 | レビュー | 実施の流れ／入力例／マージ前の確認 | `/review-pr` |
@@ -578,7 +562,8 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/<ユーザ�
 | PR 本文の形式・関連 Issue 検査 | `scripts/pr/validate-body.sh` | PR 本文の必須見出し・必須本文を検査する．`--check-related-issues` 使用時は，関連 Issue の存在，Issue であること，`Closes` の対象が Open であることを GitHub API で検査する． |
 | PR 登録 | `scripts/pr/create-pr.sh` | ブランチ名，追跡済みの未コミット変更，PR 本文ファイル，関連 Issue を検査する．成功時は `git push` と `gh pr create` を実行する． |
 | PR 本文の GitHub 側検査 | `.github/workflows/validate-pr-body.yml` | `pull_request_target` で default branch 側の `scripts/pr/validate-body.sh --stdin --check-related-issues` を実行する．PR 側の検査スクリプトは実行しない． |
-| 自動テスト | `.github/workflows/ci.yml` | Pull Request 作成時と `main` への push 時に，`nekoselect/` を作業ディレクトリとして `./gradlew test` を実行する． |
+| 初期化 | `scripts/harness/init-project.sh` | SSH remote，GitHub CLI 認証，Spring Bootアプリの自動検出，Gradleテスト，`repository_name`・`app_name`・`app_dir` 設定を検査・更新する． |
+| 自動テスト | `.github/workflows/ci.yml` | Pull Request 作成時と `main` への push 時に，`docs/project.md` の `app_dir` を読み，そのフォルダで `./gradlew test` を実行する． |
 | テンプレート同期 | `scripts/harness/generate-template-harness.sh` | `docs/template-constraints.md` の `HARNESS-CONFIG` から，Issue Form，PR テンプレート，PR 本文検査 Action，`scripts/lib/markdown-format.sh` を生成する． |
 | 週次振り返りの集計 | `scripts/report/weekly-summary.sh` と `scripts/report/server-weekly-summary.ps1` | GitHub API から Issue，PR，コミット，コメントを取得し，`docs/weekly-summary-data/` に JSON，`docs/` に HTML を生成する．ローカルサーバは heartbeat 停止後30秒で終了する． |
 
@@ -602,7 +587,8 @@ GitHub のリポジトリ設定で，default branch の `main` を対象とす�
 
 | ハーネス | 具体的な実現方法 | AI に指示する内容 |
 | --- | --- | --- |
-| ブレインストーミング | `.github/prompts/brainstorm.prompt.md` | 最初の質問を最大5件にし，明示指示前はファイルを作らない．明示指示後は `docs/temp/brainstorm/` に決められた見出しのブリーフを作る． |
+| 初期化 | `.github/prompts/init-project.prompt.md` | 初期化スクリプトの実行，結果の報告，`repository_name`・`app_name`・`app_dir` 更新の承認，初期コミット後の `/brainstorm` 案内を指示する． |
+| ブレインストーミング | `.github/prompts/brainstorm.prompt.md` | `app_dir` が設定済みか確認し，最初の質問を最大5件にする．明示指示前はファイルを作らず，明示指示後は `docs/temp/brainstorm/` に決められた見出しのブリーフを作る． |
 | Issue 分割 | `.github/prompts/plan-issues.prompt.md` | 分割相談と草案作成を2段階で進める．草案作成時は `assignee:` を空欄にし，学生が直接記入するよう案内する． |
 | 実装 | `AGENTS.md`，`.github/skills/implement-issue/SKILL.md`，`.github/copilot-instructions.md` | Issue の AC・依存関係・変更境界・既存テストを確認し，変更予定とテスト計画を示してから承認を待つ．必要時だけ `docs/ref/springboot_samples/` を読み取り専用で参照する． |
 | Java とテスト | `.github/instructions/java.instructions.md`，`.github/instructions/test.instructions.md` | Java の配置・責務分割，AC に対応するテスト，必要な失敗例・境界値，テスト名の書き方を指示する． |

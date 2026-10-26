@@ -5,6 +5,8 @@ description: "合意した機能案を、登録可能な複数Issueの草案へ�
 
 実装はしない。このPromptは、学生との対話を次の2段階で行う。GitHubへの登録、コードの作成、Issueコメントの投稿はしない。
 
+開始前に `docs/project.md` の `PROJECT-CONFIG` にある `app_dir` が設定済みか確認する。未設定なら `/init-project` を実行するよう案内して停止する。
+
 ## 入力の確認
 
 最後の入力欄には、次のどちらかを受け取る。
@@ -31,7 +33,7 @@ description: "合意した機能案を、登録可能な複数Issueの草案へ�
 
 学生がIssue分割を明示的に承認した場合だけ実行する。`docs/project.md` と関連する既存コード・テストを確認する。現在のプロジェクトだけでは設計または実装方針を判断しにくい場合は、`docs/ref/springboot_samples/` が存在するか確認し、今回の機能に関係するSpring Bootサンプルのファイルだけを読み取り専用で参照する。学生が依頼文に参照の指示を書く必要はない。`docs/ref/springboot_samples/` はローカル参考資料であり、変更、Issueの変更境界への記載、`docs/temp/issues.md` への変更予定ファイルの記載をしてはならない。
 
-参照した場合は、最終報告で「参考にしたファイル」と「採用した考え方」を短く示す。サンプルをそのまま複写せず、現状の構成と対象IssueのACに合わせる。`docs/ref/springboot_samples/` がない場合は、参照なしで続行する。
+参照した場合は、最終報告で「参考にしたファイル」と「採用した考え方」を短く示す。サンプルをそのまま複写せず、`app_dir` で指定されたアプリの構成と対象IssueのACに合わせる。`docs/ref/springboot_samples/` がない場合は、参照なしで続行する。
 
 各Issueについて次を作成する。
 
@@ -69,30 +71,30 @@ printf 'Trailing whitespace:\n'; grep -n -E '[[:blank:]]$' docs/temp/issues.md |
 # Issue草案
 
 <!-- ISSUE
-id: game-page
-title: [Feature] じゃんけん画面を表示する
+id: event-page
+title: [Feature] イベント詳細画面を表示する
 assignee:
 depends-on:
 -->
 ## 機能の概要
 
-ログイン済み利用者がじゃんけんの手を選ぶ画面を表示できる。
-今回しないこと: 手の送信、勝敗計算、履歴保存。
+ログイン済み利用者がイベントの詳細を確認できる画面を表示できる。
+今回しないこと: 参加登録、定員管理、通知の送信。
 
 ## AC（受け入れ基準）
 
-- Given ログイン済み、When `/game` を開く、Then 手を選ぶ画面が表示される。
+- Given ログイン済み、When `/events/1` を開く、Then イベント詳細が表示される。
 
 ## 関連ファイル・変更境界
 
-- 新規: `nekoselect/src/main/java/.../GameController.java`
-- 新規: `nekoselect/src/test/java/.../GameControllerTest.java`
+- 新規: `<アプリフォルダ>/src/main/java/.../EventController.java`
+- 新規: `<アプリフォルダ>/src/test/java/.../EventControllerTest.java`
 
 ## 実装計画
 
-1. `GameController.java` を追加し、GET `/game` で `game` を返す。
-2. `game.html` を追加し、手の選択肢を表示する。
-3. `GameControllerTest.java` を追加し、ログイン済みと未ログインのACを確認する。
+1. `EventController.java` を追加し、GET `/events/{id}` でイベント詳細を返す。
+2. `event.html` を追加し、イベント名と説明を表示する。
+3. `EventControllerTest.java` を追加し、ログイン済みと未ログインのACを確認する。
 
 ## 変更しないものとリスク
 

@@ -1,5 +1,5 @@
 ---
-applyTo: "nekoselect/src/test/**/*.java"
+applyTo: "**/src/test/**/*.java"
 ---
 
 # テスト

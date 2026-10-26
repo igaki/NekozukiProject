@@ -1,9 +1,14 @@
 # プロジェクト概要
 
+<!-- PROJECT-CONFIG
+repository_name=NekozukiProject
+app_name=nekoselect
+app_dir=nekoselect
+-->
+
 ## 開発者（GitHub名）
-- igaki
-- kiyoshi-honda
-- fukuyasu
+
+`/init-project` でGitHubリポジトリの状態を確認する。各Issueの担当者はGitHub上で管理する。
 
 ## 開発するアプリケーションの条件
 
@@ -21,12 +26,12 @@
 
 PortableGit Bash を起動して開発する。JDK、Gradle、GitHub CLIのPATH設定は自動で行われる。
 
-初回だけ `gh auth login` を実行してGitHubへ認証する。`java -version`、`gradle --version`、`gh --version` で環境を確認する。
+`/init-project` を実行して、GitHub認証、SSH remote、Spring Bootアプリ、Gradleテスト、`app_dir` の設定を確認する。
 
 ## 現在の構成
 
-- アプリ本体: `nekoselect/`
-- 技術: Java 25 / Spring Boot 4 / Thymeleaf / Spring Security / MyBatis / H2
+- GitHubリポジトリ名・アプリ名・アプリ本体のフォルダ: このファイルの `PROJECT-CONFIG` にある `repository_name`・`app_name`・`app_dir`
+- 技術: 学生チームが作成する Spring Boot アプリケーション
 
 ## プロジェクトで守る原則
 
@@ -45,8 +50,8 @@ PortableGit Bash を起動して開発する。JDK、Gradle、GitHub CLIのPATH�
 2. Issueごとのブランチで実装し、`main` へ直接コミットしていない。
 3. 実装がIssueのACと変更境界の範囲に収まり、範囲外の変更はIssueで合意している。
 4. ACごとに、自動テストまたは手動確認の結果と残る懸念をPR本文へ記録している。
-5. アプリ本体のフォルダ で `gradle test` が成功している。
-6. Web画面を変更した場合、`gradle bootRun` により学生がブラウザで該当ACを確認している。
+5. `app_dir` のフォルダで `./gradlew test` が成功している。
+6. Web画面を変更した場合、`app_dir` のフォルダで `./gradlew bootRun` により学生がブラウザで該当ACを確認している。
 7. PRがテンプレートを満たし、Openな完了対象Issueには `Closes #番号`、完了済みIssueの参照には `Refs #番号` を用いている。
 8. 実装者以外がAC・差分・テストをレビューし、CI成功後にマージしている。
 9. デバッグで個別記録を残す場合、その記録を修正コード・回帰テストと同じPRに含めている。
@@ -60,7 +65,7 @@ PortableGit Bash を起動して開発する。JDK、Gradle、GitHub CLIのPATH�
 | GitHub Issue | 機能のAC、変更境界、実装計画、依存関係 | GitHub上で管理 |
 | Pull Request・レビュー・CI | 実装内容、AC確認、レビュー、マージ根拠 | GitHub上で管理 |
 | テスト・コード | 実装済みの振る舞い | 管理する |
-| `docs/project.md` | 共通DoDとこの方針 | 管理する |
+| `docs/project.md` | 共通DoD、この方針、リポジトリ名・アプリ名・アプリフォルダ設定 | 管理する |
 | `docs/template-constraints.md` | Issue／PRテンプレートの制約 | 管理する |
 | `docs/assets/vendor/` | オフライン表示に必要な外部資材とライセンス案内 | 管理する |
 | `docs/trouble/` | `debug` Skillが残す個別デバッグ記録 | 管理する |

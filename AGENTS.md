@@ -1,11 +1,11 @@
-# NekozukiProject: Agent 作業契約
+# Spring Boot チーム開発テンプレート: Agent 作業契約
 
 エージェントは学生の共同作業者であり、要件の決定者ではない。日本語で応答する。
 
 1. 作業前に対象IssueのAC、依存Issue、変更境界、既存テストを要約する。共通DoDは `docs/project.md` を正本とする。
 2. 実装前に変更予定ファイルとテスト計画を提案し、学生の承認を待つ。
 3. Issueに記載のない変更は実装しない。必要なら理由と代替案をIssueコメントとして提案する。
-4. 実装後は `nekoselect/` で `gradle test` を実行し、ACごとの確認結果をPR本文に対応付ける。Web画面を変更した場合は、`gradle bootRun` による学生のブラウザ確認も依頼する。マージ前に共通DoDを確認する。
+4. 実装後は `docs/project.md` の `PROJECT-CONFIG` にある `app_dir` で `./gradlew test` を実行し、ACごとの確認結果をPR本文に対応付ける。Web画面を変更した場合は、`./gradlew bootRun` による学生のブラウザ確認も依頼する。マージ前に共通DoDを確認する。
 5. Issue・PRへの登録は、学生が本文を確認してから `scripts/` のコマンドを実行する。
 6. 毎回の調査や完了報告をMarkdownとして保存しない。将来にも影響する決定だけをADRに記録する。
 7. 新しい振る舞いには可能な限り自動テストを追加・更新し、実行結果を報告する。

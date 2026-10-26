@@ -1,4 +1,4 @@
-package oit.is.nekodaisuki.nekoselect;
+package oit.is.nekozuki.nekoselect;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

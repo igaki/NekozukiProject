@@ -6,6 +6,7 @@
 
 ## Copilot Chatでの作業
 
+- `/brainstorm`、`/plan-issues`、実装、デバッグを始める前に、`docs/project.md` の `PROJECT-CONFIG` にある `app_dir` が設定済みか確認する。未設定なら `/init-project` を案内する。
 - 学生が `.github/prompts/` のPromptを選んだ場合は、そのPromptの段階・停止条件を守る。
 - 実装、障害診断では、該当する `.github/skills/` のSkillを優先して利用する。PR本文準備、レビューでは、該当する `.github/prompts/` のPromptを選んだ場合は、そのPromptの段階・停止条件を守る。
 - Javaファイルまたはテストファイルを扱う場合は、対応する `.github/instructions/*.instructions.md` の規則を適用する。
