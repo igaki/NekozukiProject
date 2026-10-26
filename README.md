@@ -53,8 +53,8 @@
 1. ローカルフォルダ名と GitHub リポジトリ名を `RenameMe` 以外にする．
 2. Spring Boot プロジェクトを好きな名前で作成する．
 3. Copilot Chat で `/init-project` を選ぶ．
-4. Prompt が SSH remote，GitHub CLI 認証，Spring Boot アプリ，Gradleテスト，main 保護設定を検査する．
-5. 検出したリポジトリ名，アプリ名，アプリフォルダを `docs/project.md` に設定する承認を求められたら，内容を確認して承認する．
+4. Prompt が SSH remote，GitHub CLI 認証，Collaborator 一覧，Spring Boot アプリ，Gradleテスト，main 保護設定を検査する．Collaborator が0人または取得できない場合は停止する．
+5. 検出したリポジトリ名，アプリ名，アプリフォルダ，Collaborator 一覧を `docs/project.md` に設定する承認を求められたら，内容を確認して承認する．既に記録がある場合も，最新の一覧で更新する．
 6. 初期化後，アプリ本体と `docs/project.md` を初期コミットする．
 
 ### 入力例
@@ -80,6 +80,7 @@ bash scripts/harness/init-project.sh --initialize
 ### 初期化後の確認
 
 - `docs/project.md` の `PROJECT-CONFIG` に，検出された `repository_name`，`app_name`，`app_dir` が記録されている．
+- `## 開発者（GitHub名）` に，取得した最新の Collaborator のGitHub ID一覧が記録されている．
 - `app_dir` のフォルダで `./gradlew test` が成功している．
 - 以降の `/brainstorm`，`/plan-issues`，Skill，CI は `app_dir` をアプリフォルダとして利用する．
 
@@ -562,7 +563,7 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/<ユーザ�
 | PR 本文の形式・関連 Issue 検査 | `scripts/pr/validate-body.sh` | PR 本文の必須見出し・必須本文を検査する．`--check-related-issues` 使用時は，関連 Issue の存在，Issue であること，`Closes` の対象が Open であることを GitHub API で検査する． |
 | PR 登録 | `scripts/pr/create-pr.sh` | ブランチ名，追跡済みの未コミット変更，PR 本文ファイル，関連 Issue を検査する．成功時は `git push` と `gh pr create` を実行する． |
 | PR 本文の GitHub 側検査 | `.github/workflows/validate-pr-body.yml` | `pull_request_target` で default branch 側の `scripts/pr/validate-body.sh --stdin --check-related-issues` を実行する．PR 側の検査スクリプトは実行しない． |
-| 初期化 | `scripts/harness/init-project.sh` | SSH remote，GitHub CLI 認証，Spring Bootアプリの自動検出，Gradleテスト，`repository_name`・`app_name`・`app_dir` 設定を検査・更新する． |
+| 初期化 | `scripts/harness/init-project.sh` | SSH remote，GitHub CLI 認証，Collaborator 一覧，Spring Bootアプリの自動検出，Gradleテストを検査し，`repository_name`・`app_name`・`app_dir` と開発者一覧を更新する．Collaborator が0人なら停止する． |
 | 自動テスト | `.github/workflows/ci.yml` | Pull Request 作成時と `main` への push 時に，`docs/project.md` の `app_dir` を読み，そのフォルダで `./gradlew test` を実行する． |
 | テンプレート同期 | `scripts/harness/generate-template-harness.sh` | `docs/template-constraints.md` の `HARNESS-CONFIG` から，Issue Form，PR テンプレート，PR 本文検査 Action，`scripts/lib/markdown-format.sh` を生成する． |
 | 週次振り返りの集計 | `scripts/report/weekly-summary.sh` と `scripts/report/server-weekly-summary.ps1` | GitHub API から Issue，PR，コミット，コメントを取得し，`docs/weekly-summary-data/` に JSON，`docs/` に HTML を生成する．ローカルサーバは heartbeat 停止後30秒で終了する． |
@@ -587,7 +588,7 @@ GitHub のリポジトリ設定で，default branch の `main` を対象とす�
 
 | ハーネス | 具体的な実現方法 | AI に指示する内容 |
 | --- | --- | --- |
-| 初期化 | `.github/prompts/init-project.prompt.md` | 初期化スクリプトの実行，結果の報告，`repository_name`・`app_name`・`app_dir` 更新の承認，初期コミット後の `/brainstorm` 案内を指示する． |
+| 初期化 | `.github/prompts/init-project.prompt.md` | 初期化スクリプトの実行，Collaborator を含む結果の報告，プロジェクト設定と開発者一覧の更新承認，初期コミット後の `/brainstorm` 案内を指示する． |
 | ブレインストーミング | `.github/prompts/brainstorm.prompt.md` | `app_dir` が設定済みか確認し，最初の質問を最大5件にする．明示指示前はファイルを作らず，明示指示後は `docs/temp/brainstorm/` に決められた見出しのブリーフを作る． |
 | Issue 分割 | `.github/prompts/plan-issues.prompt.md` | 分割相談と草案作成を2段階で進める．草案作成時は `assignee:` を空欄にし，学生が直接記入するよう案内する． |
 | 実装 | `AGENTS.md`，`.github/skills/implement-issue/SKILL.md`，`.github/copilot-instructions.md` | Issue の AC・依存関係・変更境界・既存テストを確認し，変更予定とテスト計画を示してから承認を待つ．必要時だけ `docs/ref/springboot_samples/` を読み取り専用で参照する． |

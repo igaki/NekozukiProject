@@ -8,7 +8,10 @@ app_dir=nekoselect
 
 ## 開発者（GitHub名）
 
-`/init-project` でGitHubリポジトリの状態を確認する。各Issueの担当者はGitHub上で管理する。
+`/init-project` が、GitHubから取得した最新の Collaborator 一覧でこのブロックを更新する。各Issueの担当者はGitHub上で管理する。
+
+<!-- COLLABORATORS: START -->
+<!-- COLLABORATORS: END -->
 
 ## 開発するアプリケーションの条件
 
