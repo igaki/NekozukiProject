@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>アカウント - Nekoselect</title>
+</head>
+
+<body>
+  <main>
+    <h1>プレイヤーアカウント</h1>
+    <section aria-labelledby="login-heading">
+      <h2 id="login-heading">ログイン</h2>
+      <p th:if="${loginError}" th:text="${loginError}" role="alert"></p>
+      <form th:action="@{/login}" method="post">
+        <label for="login-username">ユーザー名</label>
+        <input id="login-username" name="username" type="text" autocomplete="username" required>
+
+        <label for="login-password">パスワード</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+
+        <button type="submit">ログイン</button>
+      </form>
+    </section>
+
+    <section aria-labelledby="register-heading">
+    <h2 id="register-heading">新規登録</h2>
+    <p th:if="${error}" th:text="${error}" role="alert"></p>
+    <form th:action="@{/register}" method="post">
+      <label for="username">ユーザー名</label>
+      <input id="username" name="username" type="text" minlength="3" maxlength="20" pattern="[A-Za-z0-9_]{3,20}"
+        autocomplete="username" required>
+
+      <label for="password">パスワード</label>
+      <input id="password" name="password" type="password" minlength="4" autocomplete="new-password" required>
+
+      <button type="submit">登録</button>
+    </form>
+    </section>
+  </main>
+</body>
+
+</html>
