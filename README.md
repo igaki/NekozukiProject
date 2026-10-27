@@ -44,32 +44,34 @@
 
 ## 0. 準備
 
-1. `RenameMe` というフォルダが配布されるので，まず新しい GitHub リポジトリ名を決めて `RenameMe`から変更しましょう．
-2. GitHub リポジトリとローカルリポジトリを作成し，初期コミットを実施しましょう．
-3. GitHub CLI を使えるようにしておきましょう．これはIssueやPRの作成・
+1. `RenameMe` というフォルダが配布されるので，まず新しい GitHub リポジトリ名を決めて `RenameMe`から変更する．
+2. GitHub リポジトリとローカルリポジトリを作成し，初期コミットを実施する．
+3. GitHub CLI を使えるようにする．これはIssueやPRの作成・登録に必要です．
   - 参考： https://docs.github.com/ja/github-cli/github-cli/quickstart
-  - 下記のコマンドを最初の一回だけ全員が実行しましょう．
-  - 接続プロトコルはSSH，SSH Keyは既に登録されているはずなのでSkipで，ログイン認証はブラウザを推奨します．
+  - 下記のコマンドを最初の一回だけ全員が実行すること．
+  - 接続プロトコルはSSH，SSH Keyは既に登録されているはずなのでSkipで，ログイン認証はブラウザを選択することを推奨します．
 
 ```
 $ gh auth login
 ```
 
+4. GitHubリポジトリのCollaboratorに，チームメンバー全員を追加する．
+5. Spring Initializr を使って Spring Boot プロジェクトを作成する．
+  - Spring Initializr を使うと便利です．
+  - 授業で作成したものと同様の設定にすること
 
 ---
 
 ## 1. プロジェクトを初期化する（プロンプト: `/init-project`）
 
-学生チームが作成した Spring Boot プロジェクトを検出して設定します．アプリフォルダ名を手入力する必要はありません．
+学生チームが作成した Spring Boot プロジェクトのアプリフォルダを検出し，docs/project.mdに設定します．アプリフォルダ名を手入力する必要はありません．
 
 ### 実施の流れ
 
-1. ローカルフォルダ名と GitHub リポジトリ名を `RenameMe` 以外にする．
-2. Spring Boot プロジェクトを好きな名前で作成する．
-3. Copilot Chat で `/init-project` を選ぶ．
-4. Prompt が SSH remote，GitHub CLI 認証，Collaborator 一覧，Spring Boot アプリ，Gradleテスト，main 保護設定を検査する．Collaborator が0人または取得できない場合は停止する．
-5. 検出したリポジトリ名，アプリ名，アプリフォルダ，Collaborator 一覧を `docs/project.md` に設定する承認を求められたら，内容を確認して承認する．既に記録がある場合も，最新の一覧で更新する．
-6. 初期化後，アプリ本体と `docs/project.md` を初期コミットする．
+1. Copilot Chat で `/init-project` を選ぶ．
+2. Prompt が SSH remote，GitHub CLI 認証，Collaborator 一覧，Spring Boot アプリ，Gradleテスト，main 保護設定を検査する．Collaborator が0人または取得できない場合は停止する．
+3. 検出したリポジトリ名，アプリ名，アプリフォルダ，Collaborator 一覧を `docs/project.md` に設定する承認を求められたら，内容を確認して承認する．既に記録がある場合も，最新の一覧で更新する．
+4. 初期化後，アプリ本体と `docs/project.md` を初期コミットする．
 
 ### 入力例
 
@@ -373,6 +375,8 @@ Copilot Chat の入力欄で，`/prepare-pr` を選んでから次のように�
 cd "$(git rev-parse --show-toplevel)"
 bash scripts/pr/create-pr.sh lec06
 ```
+
+GitHub APIの一時的なエラーでPR作成後のMilestone設定だけが失敗した場合、スクリプトは作成済みPRを確認し、Milestoneの設定を再試行します。同じブランチのOpen PRが既にあれば、新しいPRを作らずMilestoneを確認・修復します。修復できない場合はPR番号と確認方法を表示するので、GitHub上でMilestoneを確認してください。作成済みか不明なときも、GitHub上で同じブランチのPRを確認してから再実行してください。
 
 引数に関連Issueと同じMilestoneを必ず指定します．空欄、GitHub上に存在しない値、Issue側と一致しない値なら、push・PR作成前に停止します．本文・ブランチ・Issue を検査して問題がなければ push と PR 作成を行います．
 
