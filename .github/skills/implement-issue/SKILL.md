@@ -6,6 +6,7 @@ description: GitHub IssueのACと変更境界に従い、小さなSpring Boot機
 # Issueを実装する
 
 開始時に「使用Skill: implement-issue」と明示する。
+コマンド・スクリプトの実行や変更の許可を学生に求める場合は、`AGENTS.md` に従って目的、対象、コマンド、変更の有無を先に説明する。
 
 1. Issue本文・コメント・依存関係を確認し、AC、変更境界、登録済みの実装計画を要約する。共通DoDは `docs/project.md` で確認する。
    `docs/project.md` の `PROJECT-CONFIG` にある `app_dir` が未設定なら、実装せず `/init-project` を案内して停止する。

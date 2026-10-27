@@ -45,8 +45,54 @@ for number in "${RELATED_NUMBERS[@]}"; do
     exit 1
   }
 done
-EXISTING_PR="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
-[[ -z "$EXISTING_PR" ]] || { echo "エラー: このブランチのOpen Pull Request #${EXISTING_PR} が既にあります。" >&2; exit 1; }
+find_open_pr() {
+  gh api "repos/${REPOSITORY}/pulls?state=open&head=${REPOSITORY%%/*}:${BRANCH}&base=main&per_page=100" \
+    --jq '.[0].number // empty'
+}
+
+ensure_pr_milestone() {
+  local number="$1" url="$2" current milestone_number attempt
+  for attempt in 1 2 3; do
+    if current="$(gh api "repos/${REPOSITORY}/issues/${number}" --jq '.milestone.title // empty')"; then
+      if [[ "$current" == "$MILESTONE" ]]; then
+        echo "PR #${number} のMilestoneを確認しました: ${MILESTONE}"
+        return 0
+      fi
+    else
+      echo "警告: PR #${number} のMilestoneを取得できませんでした（${attempt}/3）。" >&2
+    fi
+
+    if [[ -z "${milestone_number:-}" ]]; then
+      if ! milestone_number="$(gh api --paginate --slurp "repos/${REPOSITORY}/milestones?state=all&per_page=100" |
+        jq -er --arg title "$MILESTONE" 'add // [] | map(select(.title == $title)) | .[0].number')"; then
+        echo "エラー: Milestone '${MILESTONE}' の番号を取得できません。PRは作成済みの可能性があります: ${url}" >&2
+        return 1
+      fi
+    fi
+    if ! gh api -X PATCH "repos/${REPOSITORY}/issues/${number}" -F "milestone=${milestone_number}" >/dev/null; then
+      echo "警告: PR #${number} へのMilestone設定に失敗しました（${attempt}/3）。" >&2
+    fi
+    [[ "$attempt" -eq 3 ]] || sleep 2
+  done
+  if current="$(gh api "repos/${REPOSITORY}/issues/${number}" --jq '.milestone.title // empty')" && [[ "$current" == "$MILESTONE" ]]; then
+    echo "PR #${number} のMilestoneを確認しました: ${MILESTONE}"
+    return 0
+  fi
+  echo "エラー: PR #${number} のMilestone '${MILESTONE}' を確認できませんでした: ${url}" >&2
+  echo "GitHubのPR画面でMilestoneを確認するか、gh pr edit ${number} --repo ${REPOSITORY} --milestone ${MILESTONE} を実行してください。" >&2
+  return 1
+}
+
+if ! EXISTING_PR="$(find_open_pr)"; then
+  echo 'エラー: 既存のPRを確認できません。PRを新規作成せず終了します。' >&2
+  exit 1
+fi
+if [[ -n "$EXISTING_PR" ]]; then
+  echo "このブランチのOpen Pull Request #${EXISTING_PR} を確認しました。Milestoneを検査します。"
+  ensure_pr_milestone "$EXISTING_PR" "https://github.com/${REPOSITORY}/pull/${EXISTING_PR}" || exit 1
+  echo '次は /review-pr Promptを起動して、作成したPRのレビューを始めてください。'
+  exit 0
+fi
 
 echo "--- 作成するPR ---"
 echo "ブランチ: $BRANCH"
@@ -55,5 +101,31 @@ echo "Milestone: $MILESTONE"
 echo "題名: $ISSUE_TITLE"
 echo "本文ファイル: $BODY_FILE"
 git push -u origin "$BRANCH"
-gh pr create --base main --head "$BRANCH" --title "$ISSUE_TITLE" --body-file "$BODY_FILE" --milestone "$MILESTONE"
+CREATE_STATUS=0
+CREATE_OUTPUT="$(gh pr create --base main --head "$BRANCH" --title "$ISSUE_TITLE" --body-file "$BODY_FILE" --milestone "$MILESTONE")" || CREATE_STATUS=$?
+[[ -z "$CREATE_OUTPUT" ]] || printf '%s\n' "$CREATE_OUTPUT"
+PR_NUMBER=''
+PR_URL=''
+while IFS= read -r line; do
+  if [[ "$line" =~ ^https?://[^/]+/[^/]+/[^/]+/pull/([0-9]+)/?$ ]]; then
+    PR_NUMBER="${BASH_REMATCH[1]}"
+    PR_URL="$line"
+  fi
+done <<< "$CREATE_OUTPUT"
+if [[ -z "$PR_NUMBER" ]]; then
+  if ! PR_NUMBER="$(find_open_pr)"; then
+    echo 'エラー: PR作成後の状態を確認できません。再実行する前にGitHub上でこのブランチのPRを確認してください。' >&2
+    exit 1
+  fi
+  if [[ -z "$PR_NUMBER" ]]; then
+    echo 'エラー: PRの作成を確認できません。再実行する前にGitHub上でこのブランチのPRを確認してください。' >&2
+    exit 1
+  fi
+  PR_URL="https://github.com/${REPOSITORY}/pull/${PR_NUMBER}"
+  echo "作成済みのPRを検出しました: ${PR_URL}"
+fi
+if [[ "$CREATE_STATUS" -ne 0 ]]; then
+  echo "警告: gh pr create の後処理が失敗しました。作成済みのPR #${PR_NUMBER} を確認して復旧します。" >&2
+fi
+ensure_pr_milestone "$PR_NUMBER" "$PR_URL" || exit 1
 echo "次は /review-pr Promptを起動して、作成したPRのレビューを始めてください。"
