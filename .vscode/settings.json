@@ -1,0 +1,17 @@
+{
+  "workbench.colorTheme": "Light+",
+
+  "java.import.exclusions": [
+    "**/docs/ref/springboot_samples/**"
+  ],
+
+  "java.diagnostic.filter": [
+    "**/docs/ref/springboot_samples/**"
+  ],
+
+  "java.project.resourceFilters": [
+    "node_modules",
+    "\\.git",
+    "springboot_samples"
+  ]
+}
