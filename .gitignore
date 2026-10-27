@@ -11,12 +11,14 @@ gradle/wrapper/
 # Eclipse
 .classpath
 .project
+.settings/
 
 # IntelliJ
 *.iml
 .idea/
 
 # VS Code
+.vscode/
 
 # OS files
 .DS_Store
@@ -26,6 +28,10 @@ Thumbs.db
 *.log
 tmp/
 .tmp/
+docs/temp/
+/docs/ref/springboot_samples/
+/docs/weekly-summary_*.html
+/docs/weekly-summary-data/
 *.tmp
 
 # Compiled classes and archives
