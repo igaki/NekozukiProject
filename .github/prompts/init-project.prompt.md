@@ -4,6 +4,7 @@ description: "ブレインストーミング前に、GitHubリポジトリとSpr
 ---
 
 実装、Issue作成、ブレインストーミングはしない。学生にリポジトリ名やアプリフォルダ名を入力させない。
+実行許可を求める前には、`AGENTS.md` に従い、検査または設定更新の目的、実行するコマンド、変更の有無を簡潔に説明する。
 
 1. リポジトリのルートで `bash scripts/harness/init-project.sh --check` を実行する。
 2. 出力されたローカル名、GitHubリポジトリ名、SSH remote、Collaborator のGitHub ID一覧、検出されたSpring Bootアプリ、Gradleテスト結果、GitHub main 保護設定を短い表で示す。

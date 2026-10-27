@@ -4,6 +4,7 @@ description: "実装済みIssueの証拠を集め、学生との対話を通じ�
 ---
 
 PRを作成・pushしない。一度に複数段階の質問をしない。
+Issue・差分・テストを確認するコマンドの実行許可を求める場合は、`AGENTS.md` に従って目的、対象、コマンド、変更の有無を先に説明する。
 
 1. 現在のブランチ名からIssue番号を読み取る。読み取れない場合だけ学生へIssue番号を質問する。
 2. Issue本文のAC、GitHub上のMilestone、git差分、直近のcommitを確認する。Milestoneが空欄ならIssueへ既存のlec06～lec14を設定するよう案内して停止する。

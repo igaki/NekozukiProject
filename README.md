@@ -5,6 +5,10 @@
 **このマニュアルに書いてあること**: 何を，どの順で，どのコマンドで実行するか．
 **このマニュアルに書いていないこと**: 用語の意味と背景．[AIエージェントと一緒に開発するための用語ガイド](./lec06withai.md) を参照してください．
 
+**入力先の見分け方**: `/init-project` などのPromptや「Skillを使ってください」という依頼は **Copilot Chat** に入力します。`bash`・`gh`・`git`・`./gradlew` で始まるコマンドは、原則としてリポジトリの **ターミナル（Git Bash）** で実行します。「AIが実行する確認コマンド」と記したものは学生が入力する必要はありません。GitHubの画面で行う操作はその都度明記します。
+
+Copilotがコマンドやスクリプトの実行許可を求める場合は、先に表示される**実行の目的・対象・コマンド・変更や投稿の有無**を読んでから判断してください。説明がない、または意図が分からない場合は、許可する前にCopilot Chatで確認してください。
+
 | 知りたいこと | 参照先(用語ガイド) |
 | --- | --- |
 | AC と DoD の違い，Given-When-Then，INVEST | §4-2，§4-3 |
@@ -51,14 +55,17 @@
   - 下記のコマンドを最初の一回だけ全員が実行すること．
   - 接続プロトコルはSSH，SSH Keyは既に登録されているはずなのでSkipで，ログイン認証はブラウザを選択することを推奨します．
 
-```
-$ gh auth login
+**入力先: ターミナル（Git Bash）**
+
+```bash
+gh auth login
 ```
 
 4. GitHubリポジトリのCollaboratorに，チームメンバー全員を追加する．
 5. Spring Initializr を使って Spring Boot プロジェクトを作成する．
   - Spring Initializr を使うと便利です．
   - 授業で作成したものと同様の設定にすること
+6. **Issueを登録する前に、GitHubリポジトリ上に使用するMilestoneを作成する。** GitHubのリポジトリ画面で **Issues → Milestones → New milestone** を開き、必要な `lec06`～`lec14` を名前どおりに登録する。草案の `milestone:` 欄へ名前を書くだけでは、GitHub上にMilestone自体は作成されない。既に同名のMilestoneがあれば再作成しない。[GitHubの操作手順](https://docs.github.com/ja/issues/using-labels-and-milestones-to-track-work/creating-and-editing-milestones-for-issues-and-pull-requests)も参照する。
 
 ---
 
@@ -75,19 +82,25 @@ $ gh auth login
 
 ### 入力例
 
+**入力先: Copilot Chat**
+
 ```text
 /init-project
 ```
 
-### 実行コマンド
+### AIが実行する確認・更新コマンド
 
-Prompt が実行する検査コマンドは次のとおりです．
+次はPromptが実行するコマンドです。学生がCopilot Chatへ貼り付けるコマンドではありません。
+
+**実行先: AIのターミナル（検査のみ）**
 
 ```bash
 bash scripts/harness/init-project.sh --check
 ```
 
 設定更新を承認した場合は，次を実行します．
+
+**実行先: AIのターミナル（`docs/project.md` を更新）**
 
 ```bash
 bash scripts/harness/init-project.sh --initialize
@@ -118,6 +131,8 @@ bash scripts/harness/init-project.sh --initialize
 
 ### 入力例
 
+**入力先: Copilot Chat**
+
 ```text
 /brainstorm 学内イベントで，参加者が同じ企画に参加登録できる機能を追加したいです．
 参加する人と主催者には，どんな画面や操作が必要かを一緒に考えたいです．
@@ -127,6 +142,8 @@ bash scripts/harness/init-project.sh --initialize
 
 AI は `docs/project.md` に基づき，開発対象について「すでに分かっていること／まだ分からないこと／確認したいこと」を整理し，質問を返します(例: 手はグー・チョキ・パーか，全員が選ぶまで隠すか，勝敗や履歴まで扱うか，管理者は必要か)．AI の整理を確認し，追加の決定があれば次のように伝えます．
 
+**入力先: Copilot Chat**
+
 ```text
 今回は，あらかじめ用意されたルームを選んで入れればよいです．
 ルームを新しく作る機能は次回にします．
@@ -135,6 +152,8 @@ AI は `docs/project.md` に基づき，開発対象について「すでに分�
 ### 次の工程
 
 まとまったらファイル化します．ファイル名を指定しなければ AI が機能名から決めます(同名なら `-2` などの連番)．
+
+**入力先: Copilot Chat**
 
 ```text
 ブレインストーミング結果をファイルにまとめてください．
@@ -167,6 +186,8 @@ AI は `docs/project.md` に基づき，開発対象について「すでに分�
 
 ### 入力例
 
+**入力先: Copilot Chat**
+
 ブレインストーミングから続ける場合はファイルのパスを指定しましょう．別の生成AIを利用した場合など，ブレインストーミング結果をそのまま貼り付けても構いません．
 
 ```text
@@ -175,7 +196,11 @@ AI は `docs/project.md` に基づき，開発対象について「すでに分�
 
 AI はまず内容を要約し，問題がなければ分割案を表で示します(この時点では `docs/temp/issues.md` は作られません)．id・題名・利用者価値・今回しないこと・依存・分割理由を確認します．合意後は，次のように入力して草案作成を依頼します．
 
+画面を使うACでは、**Given** に「誰がどの状態でどの画面を開いているか」、**When** に「誰がどのボタン・リンクなどを操作するか」、**Then** に「どの画面・場所に何が表示されるか」を書きます。対応するHTMLテンプレートが決まっていれば、その名前も記します。「ログイン済みプレイヤー」「ゲームを開始する」「クリックする」のように対象や方法が省略されていないか確認してください。「ルーム識別子」など固有の語は同じIssueの「機能の概要」で説明します。画面・操作・権限がまだ決まっていない場合、AIは推測して埋めず、チームに質問します。
+
 ### 草案作成の入力例
+
+**入力先: Copilot Chat**
 
 ```text
 この分け方で進めます．Issue の下書きを作ってください．
@@ -187,6 +212,8 @@ AI は草案を作成した後、登録スクリプトで形式エラーにな�
 ### 草案を修正する入力例
 
 AC が曖昧なら，**該当箇所だけ**を直すよう依頼しても構いません．
+
+**入力先: Copilot Chat**
 
 ```text
 docs/temp/issues.md の Issue game-room-join の AC 2 を，
@@ -207,23 +234,24 @@ docs/temp/issues.md の Issue game-room-join の AC 2 を，
 
 ## 4. 計画b: Issue を登録する(スクリプト:register-from-file.sh)
 
-チームで確認し，担当者とMilestoneを記入した Issue 草案を GitHub Issue として登録します．
+チームで確認し，担当者とMilestoneを記入した Issue 草案を GitHub Issue として登録します．**登録前に、指定するMilestone自体がGitHubリポジトリに作成済みであることを確認してください。** `milestone: lec06` と草案に書いただけではMilestone自体は作成されません。未作成なら[準備の手順](#0-準備)でGitHubに登録してから進みます。
 
 ### 実施の流れ
 
 1. `docs/temp/issues.md` の内容をチームで確認する．
-2. 各 Issue の `assignee:` に担当する学生の GitHub ユーザー名、`milestone:` に `lec06`～`lec14` を記入する．
-3. 登録スクリプトを実行する．
-4. エラーが出た場合は，指摘された箇所だけを修正して再実行する．
+2. 各 Issue の `assignee:` に担当する学生の GitHub ユーザー名、`milestone:` にGitHubで作成済みの `lec06`～`lec14` を記入する．
+3. 登録スクリプトをターミナルで実行する．スクリプトは指定したMilestoneを各IssueのGitHub上の設定に割り当てる．
+4. 作成されたIssueをGitHubで開き、右側のMilestone欄に指定値が設定されていることを確認する．エラーが出た場合は、指摘された箇所だけを修正して再実行する．
 
 ### 実行コマンド
+
+**入力先: ターミナル（Git Bash）**
 
 ```bash
 bash scripts/issue/register-from-file.sh docs/temp/issues.md
 ```
 
-スクリプトは質問をせず，草案を検査して問題がなければ登録します．
-GitHubのIssue Formから直接登録するときは、フォームのMilestone選択に加え、作成後にGitHubのMilestone欄へ同じ値を設定してください。フォームの回答欄だけではGitHub上のMilestoneは設定されません。作成・編集・Milestone設定／解除時にGitHub Actionsが実際の設定値を検査し、未設定またはlec06～lec14以外なら失敗を表示します。Issue Formからの作成自体は停止できないため、失敗を確認したらGitHubのMilestone欄を修正してください。
+スクリプトは質問をせず，草案を検査して問題がなければ登録します．**GitHubのIssue Formから直接登録するときは、フォームのMilestone選択とは別に、作成後にGitHubのIssue画面右側にあるMilestone欄へ同じ値を設定してください。** フォームの回答欄だけではGitHub上のMilestoneは設定されません。作成・編集・Milestone設定／解除時にGitHub Actionsが実際の設定値を検査し、未設定またはlec06～lec14以外なら失敗を表示します。Issue Formからの作成自体は停止できないため、失敗を確認したらGitHubのMilestone欄を修正してください。
 
 ### スクリプトが確認すること
 
@@ -236,6 +264,8 @@ GitHubのIssue Formから直接登録するときは、フォームのMilestone�
 ### 登録後の確認
 
 登録後は，着手可能な Issue を確認します．
+
+**入力先: ターミナル（Git Bash）**
 
 ```bash
 bash scripts/issue/ready.sh
@@ -268,6 +298,8 @@ bash scripts/issue/ready.sh
 
 #### 実行コマンド
 
+**入力先: ターミナル（Git Bash）**
+
 ```bash
 git status
 bash scripts/issue/ready.sh
@@ -295,6 +327,8 @@ Issue の範囲とテスト計画を確認し，学生が承認してから実�
 
 #### 入力例
 
+**入力先: Copilot Chat**
+
 ```text
 implement-issue Skill を使って，担当する Issue #12 の実装を始めたいです．
 ```
@@ -302,6 +336,8 @@ implement-issue Skill を使って，担当する Issue #12 の実装を始め�
 Skill は「Issue の要約(AC・依存・変更境界)」「既存確認」「変更予定」「テスト計画」を示し，**「この範囲で実装を始めてよいですか？」と承認を求めます**．基本ルールは Skill が守るため，計画を読んで，Issue 固有の確認や追加の制約がある場合だけ質問・修正します．
 
 #### Issue 固有の確認・制約の入力例
+
+**入力先: Copilot Chat**
 
 ```text
 既存の Entity を再利用できるか重点的に確認してください．
@@ -322,6 +358,8 @@ Issue の AC を満たすことを，自動テストと必要に応じたブラ�
 3. Web UI を変更した場合は，アプリを起動して AC に対応する操作をブラウザで確認する．
 
 #### 実行コマンド
+
+**入力先: ターミナル（Git Bash）。`./gradlew` は `app_dir` へ移動してから実行します。**
 
 ```bash
 git diff
@@ -352,6 +390,8 @@ AC の確認結果とテスト結果を含む PR 本文の下書きを作成し�
 
 Copilot Chat の入力欄で，`/prepare-pr` を選んでから次のように入力します．
 
+**入力先: Copilot Chat**
+
 ```text
 /prepare-pr このブランチの PR 本文を作成したいです．
 ```
@@ -370,6 +410,8 @@ Copilot Chat の入力欄で，`/prepare-pr` を選んでから次のように�
 4. 作成された PR を確認し，`/review-pr` でレビューを始める．
 
 #### 実行コマンド
+
+**入力先: ターミナル（Git Bash）**
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
@@ -403,6 +445,8 @@ GitHub APIの一時的なエラーでPR作成後のMilestone設定だけが失�
 
 ### 入力例
 
+**入力先: Copilot Chat**
+
 ```text
 /review-pr
 ```
@@ -410,6 +454,8 @@ GitHub APIの一時的なエラーでPR作成後のMilestone設定だけが失�
 ### 補助コマンド
 
 確認には GitHub CLI も使えます．
+
+**入力先: ターミナル（Git Bash）**
 
 ```bash
 gh pr list
@@ -421,6 +467,8 @@ gh pr checks 12
 ### コメント例
 
 気付いた点は**根拠とともに**書きます．
+
+**入力先: GitHubのPRコメント欄。AIに下書きを依頼する場合はCopilot Chat。**
 
 ```text
 AC 2 の「満室なら参加できない」について，PR 本文から確認方法と結果を読み取れません．
@@ -455,6 +503,8 @@ AI は確認結果を「必須（マージ前に対応が必要）」「質問�
 
 ### 入力例
 
+**入力先: Copilot Chat**
+
 ```text
 debug Skill を使ってください．
 Issue #12 の AC は「満室なら追加参加できない」ですが，./gradlew test で次の失敗が出ました: (エラー全文を貼る)
@@ -463,6 +513,8 @@ Issue #12 の AC は「満室なら追加参加できない」ですが，./grad
 Skill は「期待結果／実際の結果／再現手順／原因候補／候補を区別する確認」を分けて示します．コードを変更する前に，原因，修正範囲，再発防止テストを確認し，承認してから修正を依頼しましょう．
 
 ### 原因を確認した後の入力例
+
+**入力先: Copilot Chat**
 
 ```text
 候補 2 を確認し，原因は参加人数の判定が保存前の値を使っていることだと分かりました．
@@ -494,6 +546,8 @@ Skill は「期待結果／実際の結果／再現手順／原因候補／候�
 
 ### 実行コマンド
 
+**入力先: ターミナル（Git Bash）**
+
 ```bash
 # ログイン中の学生について、lec06に属するIssue・PRを集計する
 bash scripts/report/weekly-summary.sh --milestone lec06
@@ -514,6 +568,8 @@ bash scripts/report/weekly-summary.sh --milestone lec07 --student fukuyasu
 
 ### 過去の記録を開くコマンド
 
+**入力先: ターミナル（Git Bash）**
+
 ```bash
 bash scripts/report/open-weekly-summary.sh
 bash scripts/report/open-weekly-summary.sh --student fukuyasu
@@ -533,36 +589,38 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/fukuyasu/lec
 
 ### 困ったことと最初に行うこと
 
-| 困ったこと | 最初に行うこと |
-| --- | --- |
-| 配布テンプレートを使い始めたい | Copilot Chat で `/init-project` |
-| 何を作るかが曖昧 | Copilot Chat で `/brainstorm` |
-| 機能をどう分けるか迷う | Copilot Chat で `/plan-issues` |
-| Issue を GitHub に登録したい | `bash scripts/issue/register-from-file.sh docs/temp/issues.md` |
-| 次に着手できる Issue を知りたい | `bash scripts/issue/ready.sh` |
-| 実装の進め方を確認したい | `implement-issue` Skill |
-| PR 本文を作りたい | `/prepare-pr` → `bash scripts/pr/create-pr.sh lec06` |
-| レビューしたい | `/review-pr` |
-| テストが失敗した | `debug` Skill |
+| 困ったこと | 最初に行うこと | 入力先・操作場所 |
+| --- | --- | --- |
+| 配布テンプレートを使い始めたい | `/init-project` | Copilot Chat |
+| 何を作るかが曖昧 | `/brainstorm` | Copilot Chat |
+| 機能をどう分けるか迷う | `/plan-issues` | Copilot Chat |
+| MilestoneがGitHubにない | Issues → Milestones → New milestone | GitHubの画面 |
+| Issue を GitHub に登録したい | `bash scripts/issue/register-from-file.sh docs/temp/issues.md` | ターミナル（Git Bash） |
+| 次に着手できる Issue を知りたい | `bash scripts/issue/ready.sh` | ターミナル（Git Bash） |
+| 実装の進め方を確認したい | `implement-issue` Skill | Copilot Chat |
+| PR 本文を作りたい | `/prepare-pr` | Copilot Chat |
+| PRを登録したい | `bash scripts/pr/create-pr.sh lec06` | ターミナル（Git Bash） |
+| レビューしたい | `/review-pr` | Copilot Chat |
+| テストが失敗した | `debug` Skill | Copilot Chat |
 
 
 ### プロンプト，スキル，スクリプトごとの入力例
 
-| 対象 | 見出し | 入力例／実行例 |
-| --- | --- | --- |
-| 初期化 | 実施の流れ／入力例／初期化後の確認 | `/init-project` |
-| ブレインストーミング | 実施の流れ／入力例／次へ進む前の確認 | `/brainstorm <相談したい内容>` |
-| Issue 分割 | 実施の流れ／入力例／次へ進む前の確認 | `/plan-issues <機能の説明またはブリーフのパス>` |
-| Issue 登録 | 実施の流れ／実行コマンド／登録後の確認 | `bash scripts/issue/register-from-file.sh docs/temp/issues.md` |
-| ブランチ作成 | 実施の流れ／実行コマンド／次の工程 | `bash scripts/issue/ready.sh` |
-| 実装計画 | 実施の流れ／入力例／承認後の作業 | `implement-issue Skill を使って…` |
-| テストと動作確認 | 実施の流れ／実行コマンド／確認できた状態 | `app_dir` のフォルダで `./gradlew test`，`./gradlew bootRun` |
-| PR 本文作成 | 実施の流れ／入力例／次の工程 | `/prepare-pr このブランチの PR 本文を作成したいです。` |
-| PR 登録 | 実施の流れ／実行コマンド／登録後の確認 | `bash scripts/pr/create-pr.sh lec06` |
-| レビュー | 実施の流れ／入力例／マージ前の確認 | `/review-pr` |
-| デバッグ | 実施の流れ／入力例／終了前の確認 | `debug Skill を使ってください。` |
-| 週次振り返り | 実施の流れ／実行コマンド／出力物 | `bash scripts/report/weekly-summary.sh --milestone lec06` |
-| テンプレート設定の更新 | 実施の流れ／実行コマンド／更新後の確認 | `bash scripts/harness/generate-template-harness.sh` |
+| 対象 | 見出し | 入力例／実行例 | 入力先・操作場所 |
+| --- | --- | --- | --- |
+| 初期化 | 実施の流れ／入力例／初期化後の確認 | `/init-project` | Copilot Chat |
+| ブレインストーミング | 実施の流れ／入力例／次へ進む前の確認 | `/brainstorm <相談したい内容>` | Copilot Chat |
+| Issue 分割 | 実施の流れ／入力例／次へ進む前の確認 | `/plan-issues <機能の説明またはブリーフのパス>` | Copilot Chat |
+| Issue 登録 | 実施の流れ／実行コマンド／登録後の確認 | `bash scripts/issue/register-from-file.sh docs/temp/issues.md` | ターミナル（Git Bash） |
+| ブランチ作成 | 実施の流れ／実行コマンド／次の工程 | `bash scripts/issue/ready.sh` | ターミナル（Git Bash） |
+| 実装計画 | 実施の流れ／入力例／承認後の作業 | `implement-issue Skill を使って…` | Copilot Chat |
+| テストと動作確認 | 実施の流れ／実行コマンド／確認できた状態 | `app_dir` のフォルダで `./gradlew test`，`./gradlew bootRun` | ターミナル（Git Bash） |
+| PR 本文作成 | 実施の流れ／入力例／次の工程 | `/prepare-pr このブランチの PR 本文を作成したいです。` | Copilot Chat |
+| PR 登録 | 実施の流れ／実行コマンド／登録後の確認 | `bash scripts/pr/create-pr.sh lec06` | ターミナル（Git Bash） |
+| レビュー | 実施の流れ／入力例／マージ前の確認 | `/review-pr` | Copilot Chat |
+| デバッグ | 実施の流れ／入力例／終了前の確認 | `debug Skill を使ってください。` | Copilot Chat |
+| 週次振り返り | 実施の流れ／実行コマンド／出力物 | `bash scripts/report/weekly-summary.sh --milestone lec06` | ターミナル（Git Bash） |
+| テンプレート設定の更新 | 実施の流れ／実行コマンド／更新後の確認 | `bash scripts/harness/generate-template-harness.sh` | ターミナル（Git Bash） |
 
 ---
 
