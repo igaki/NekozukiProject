@@ -120,7 +120,7 @@ function renderDetails() {
     section('merged-by-student', '自分がマージしたPR', report.mergedByStudent, pr => `<div class="list-item">${link(pr.url, `#${pr.number} ${pr.title}`)} <span class="meta">${esc(pr.mergedAt)}</span></div>`) +
     section('linked-issues', 'PR連動でCloseされたIssue', report.completedIssues, issue => `<div class="list-item">${link(issue.url, `#${issue.number} ${issue.title}`)} · ${link(issue.pr.url, `PR #${issue.pr.number}`)}</div>`) +
     section('manual-issues', '手動でCloseされたIssue', report.manuallyClosedIssues, issue => `<div class="list-item">${link(issue.url, `#${issue.number} ${issue.title}`)}<p class="description">${esc(issue.body || '')}</p></div>`) +
-    section('commits', 'コミット', report.commits, commit => `<div class="list-item">${link(commit.html_url, `${commit.sha?.slice(0, 8)} ${commit.commit?.message?.split('\n')[0] || ''}`)}</div>`) +
+    section('commits', 'コミット', report.commits, commit => `<div class="list-item">${link(commit.html_url, `${commit.sha?.slice(0, 8)} ${commit.message?.split('\n')[0] || ''}`)}</div>`) +
     section('comments', 'GitHubコメント', report.githubComments, comment => `<div class="list-item">${link(comment.html_url, comment.body?.slice(0, 160) || 'コメント')} <span class="meta">${esc(comment.created_at)}</span></div>`) +
     section('trouble', 'trouble report', report.troubleshooting, item => `<div class="list-item">${link(item.url, item.subject)} <span class="meta">${esc(item.at)}</span></div>`);
   q('#unfinished').innerHTML = '<h2 class="title is-3 section-title">未完了</h2><p class="meta">指定Milestoneに属する全員のOpen項目です。経過時間はレポート生成時点の値です。</p>' +

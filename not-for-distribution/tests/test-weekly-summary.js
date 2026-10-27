@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const {spawn, spawnSync} = require('node:child_process');
 
-const source = __dirname;
+const source = path.resolve(__dirname, '..', '..', 'scripts', 'report');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'weekly-summary-test-'));
 const repo = path.join(root, 'repo');
 const reportDir = path.join(repo, 'scripts', 'report');
@@ -31,21 +31,26 @@ try {
   const pulls = [
     pr(10, '実装PR', 'alice', '2026-10-02T00:00:00Z', '2026-10-03T00:00:00Z', '2026-10-03T00:00:00Z', 'bob', 'MERGED'),
     pr(11, '他学生のPR', 'bob', '2026-10-02T00:00:00Z', '2026-10-04T00:00:00Z', '2026-10-04T00:00:00Z', 'alice', 'MERGED'),
-    pr(12, '未完了PR', 'bob', '2026-09-01T00:00:00Z', null, null, null, 'OPEN'),
+    pr(12, '未完了PR', 'carol', '2026-09-01T00:00:00Z', null, null, null, 'OPEN'),
     pr(13, '別MilestoneのPR', 'alice', '2026-10-02T00:00:00Z', null, null, null, 'OPEN')
   ];
   write('pulls.json', pulls);
   write('pr10.json', {...pulls[0], closingIssuesReferences: [{number: 1}]});
+  write('pr11.json', {...pulls[1], closingIssuesReferences: [{number: 5}]});
   const issue = (number, title, author, state, closedAt) => ({number, title, user: {login: author}, assignees: [{login: author}], state, milestone: {title: number === 4 ? 'lec07' : 'lec06'},
     created_at: '2026-10-02T00:00:00Z', closed_at: closedAt, html_url: `https://github.com/example/team/issues/${number}`, body: `${title}の説明`});
   const issues = [issue(1, '連動Issue', 'alice', 'closed', '2026-10-03T00:00:00Z'),
     issue(2, '手動Issue', 'alice', 'closed', '2026-10-04T00:00:00Z'),
     issue(3, '他学生の未完了Issue', 'bob', 'open', null),
-    issue(4, '別MilestoneのIssue', 'alice', 'open', null)];
+    issue(4, '別MilestoneのIssue', 'alice', 'open', null),
+    issue(5, '他学生のPRでCloseされたIssue', 'alice', 'closed', '2026-10-04T00:00:00Z')];
   write('issues.json', [issues]);
   write('issue1.json', {number: 1, title: '連動Issue', url: issues[0].html_url, body: issues[0].body,
     createdAt: issues[0].created_at, closedAt: issues[0].closed_at, assignees: [{login: 'alice'}], milestone: {title: 'lec06'}});
-  write('pr10-commits.json', [[{sha: 'abcdef123456', commit: {message: '実装', committer: {date: '2026-10-02T01:00:00Z'}, author: {date: '2026-10-02T01:00:00Z'}}}]]);
+  write('issue5.json', {number: 5, title: '他学生のPRでCloseされたIssue', url: issues[4].html_url, body: issues[4].body,
+    createdAt: issues[4].created_at, closedAt: issues[4].closed_at, assignees: [{login: 'alice'}], milestone: {title: 'lec06'}});
+  write('pr10-commits.json', [[{sha: 'abcdef123456', html_url: 'https://github.com/example/team/commit/abcdef123456', commit: {message: '実装', committer: {date: '2026-10-02T01:00:00Z'}, author: {date: '2026-10-02T01:00:00Z'}}}]]);
+  write('pr11-commits.json', [[{sha: '123456abcdef', html_url: 'https://github.com/example/team/commit/123456abcdef', commit: {message: '共同実装', committer: {date: '2026-10-03T01:00:00Z'}, author: {date: '2026-10-03T01:00:00Z'}}}]]);
   write('commits.json', [[{sha: 'abcdef123456', html_url: 'https://github.com/example/team/commit/abcdef123456', commit: {message: '実装'}}]]);
   write('issue-comments.json', [[
     {user: {login: 'alice'}, created_at: '2026-10-03T02:00:00Z', issue_url: 'https://api.github.com/repos/example/team/issues/1', html_url: 'https://github.com/example/team/issues/1#comment-1', body: '確認</script>'},
@@ -59,20 +64,27 @@ case "$1 $2" in
   'repo view') if [[ "$*" == *defaultBranchRef* ]]; then echo main; else echo example/team; fi ;;
   'pr list') cat "${msys(path.join(fixtureDir, 'pulls.json'))}" ;;
   'pr view')
+    if [[ "\${MOCK_FAIL:-}" == pr && "$3" == 10 ]]; then exit 1; fi
     if [[ "$3" == 10 ]]; then
       if [[ "$*" == *--jq* ]]; then echo 1; else cat "${msys(path.join(fixtureDir, 'pr10.json'))}"; fi
+    elif [[ "$3" == 11 ]]; then cat "${msys(path.join(fixtureDir, 'pr11.json'))}"
     elif [[ "$*" == *--jq* ]]; then :; else echo '{}'; fi ;;
   'issue view')
+    if [[ "\${MOCK_FAIL:-}" == issue && "$*" == *'--json number,title'* ]]; then exit 1; fi
+    if [[ "\${MOCK_FAIL:-}" == issue_start && "$*" == *'--json createdAt'* ]]; then exit 1; fi
     if [[ "$*" == *--jq* ]]; then echo 2026-10-02T00:00:00Z;
+    elif [[ "$3" == 5 ]]; then cat "${msys(path.join(fixtureDir, 'issue5.json'))}";
     else cat "${msys(path.join(fixtureDir, 'issue1.json'))}"; fi ;;
   'api graphql')
     if [[ "$*" == *number=1* ]]; then echo '{"data":{"repository":{"issue":{"timelineItems":{"nodes":[{"closer":{"number":10}}]}}}}}';
+    elif [[ "$*" == *number=5* ]]; then echo '{"data":{"repository":{"issue":{"timelineItems":{"nodes":[{"closer":{"number":11}}]}}}}}';
     else echo '{"data":{"repository":{"issue":{"timelineItems":{"nodes":[{"closer":null}]}}}}}'; fi ;;
   'api --paginate')
     case "$*" in
       *'/milestones?state=all'*) echo '[[{"title":"lec06"},{"title":"lec07"}]]' ;;
       *'/issues?state=all'*) cat "${msys(path.join(fixtureDir, 'issues.json'))}" ;;
-      *'/pulls/10/commits?'*) cat "${msys(path.join(fixtureDir, 'pr10-commits.json'))}" ;;
+      *'/pulls/10/commits?'*) if [[ "\${MOCK_FAIL:-}" == commits ]]; then exit 1; fi; cat "${msys(path.join(fixtureDir, 'pr10-commits.json'))}" ;;
+      *'/pulls/11/commits?'*) cat "${msys(path.join(fixtureDir, 'pr11-commits.json'))}" ;;
       *'/issues/comments?'*) cat "${msys(path.join(fixtureDir, 'issue-comments.json'))}" ;;
       *'/pulls/comments?'*) cat "${msys(path.join(fixtureDir, 'review-comments.json'))}" ;;
       *'/commits?author='*) cat "${msys(path.join(fixtureDir, 'commits.json'))}" ;;
@@ -104,11 +116,13 @@ esac
   assert.equal(data.summary.completedIssueCount, 1);
   assert.equal(data.summary.manuallyClosedIssueCount, 1);
   assert.equal(data.summary.commitCount, 1);
+  assert.equal(data.commits[0].message, '実装');
+  assert.equal(data.commits[0].html_url, 'https://github.com/example/team/commit/abcdef123456');
   assert.equal(data.summary.githubCommentCount, 1);
   assert.equal(data.summary.troubleshootingCount, 0);
   assert.deepEqual(data.openPullRequests.map(item => item.number), [12]);
   assert.deepEqual(data.openIssues.map(item => item.number), [3]);
-  assert.deepEqual(data.dodIssues.map(item => item.number), [1, 2]);
+  assert.deepEqual(data.dodIssues.map(item => item.number), [1, 2, 5]);
   assert.deepEqual(data.dodPullRequests.map(item => item.number), [10]);
   assert.equal(data.closedPullRequests[0].durationSeconds, 82800);
   const elements = new Map();
@@ -124,6 +138,8 @@ esac
   assert.match(elements.get('#dod-form-items').innerHTML, /自分が作成したすべてのIssue/);
   assert.match(elements.get('#dod-overview').innerHTML, /未選択/);
   assert.match(elements.get('#details').innerHTML, /AI利用（複数選択可）/);
+  assert.match(elements.get('#details').innerHTML, /href="https:\/\/github\.com\/example\/team\/commit\/abcdef123456"/);
+  assert.match(elements.get('#details').innerHTML, /abcdef12 実装/);
   assert.match(elements.get('#unfinished').innerHTML, /他学生の未完了Issue/);
   const dodSelect = {dataset: {dod: '1'}, value: 'all', disabled: false};
   await elements.get('#dod-form-items').handlers.change({target: {closest: () => dodSelect}});
@@ -168,6 +184,23 @@ esac
   const secondData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
   assert.equal(secondData.dodAssessment['1'].choice, 'all');
   assert.deepEqual(secondData.aiUsage['10'].choices, ['debug', 'other']);
+  const htmlBeforeFailure = fs.readFileSync(htmlPath, 'utf8');
+  for (const failure of ['pr', 'commits', 'issue_start', 'issue']) {
+    const failed = spawnSync(bash, ['-lc', command], {cwd: repo, encoding: 'utf8', timeout: 120000,
+      env: {...process.env, MOCK_FAIL: failure}});
+    assert.notEqual(failed.status, 0, `${failure} failure must stop the report`);
+    assert.match(failed.stderr, /既存のレポートは変更せず終了/);
+    assert.deepEqual(JSON.parse(fs.readFileSync(dataPath, 'utf8')), secondData);
+    assert.equal(fs.readFileSync(htmlPath, 'utf8'), htmlBeforeFailure);
+    assert.equal(fs.readdirSync(dataDir).filter(name => name.endsWith('.bak')).length, 1);
+  }
+  const bobRun = spawnSync(bash, ['-lc', `export PATH='${msys(mockBin)}':"$PATH"; bash '${msys(path.join(reportDir, 'weekly-summary.sh'))}' --student bob --milestone lec06`],
+    {cwd: repo, encoding: 'utf8', timeout: 120000});
+  if (bobRun.status !== 0) throw new Error(`bob weekly-summary failed:\n${bobRun.stdout}\n${bobRun.stderr}`);
+  const bobData = JSON.parse(fs.readFileSync(path.join(repo, 'docs', 'weekly-summary-data', 'bob', 'lec06.json'), 'utf8'));
+  assert.deepEqual(bobData.completedIssues.map(item => item.number), [5]);
+  assert.deepEqual(bobData.dodIssues.map(item => item.number), [3]);
+  assert.deepEqual(bobData.dodPullRequests.map(item => item.number), [11]);
   pulls[3].milestone = null;
   write('pulls.json', pulls);
   const blockedRun = spawnSync(bash, ['-lc', command], {cwd: repo, encoding: 'utf8', timeout: 120000});

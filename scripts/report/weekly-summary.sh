@@ -113,12 +113,12 @@ while IFS= read -r number; do
   rest="$(jq --argjson number "$number" '.[] | select(.number == $number)' "$TEMP_DIR/all-pulls.json")"
   body="$(jq -r '.body // ""' <<<"$rest")"
   if ! detail="$(gh pr view "$number" --repo "$REPOSITORY" --json number,title,url,body,createdAt,closedAt,mergedAt,mergedBy,headRefName,closingIssuesReferences 2>/dev/null)"; then
-    echo "警告: #${number} はPull Requestとして取得できないため除外します。" >&2
-    continue
+    echo "エラー: PR #${number} の詳細を取得できません。既存のレポートは変更せず終了します。" >&2
+    exit 1
   fi
-  if ! commits="$(gh api --paginate --slurp "repos/${REPOSITORY}/pulls/${number}/commits?per_page=100" | jq '[add[] | {sha, message: .commit.message, committedAt: .commit.committer.date, authoredAt: .commit.author.date}]')"; then
-    echo "警告: PR #${number} のコミットを取得できないため除外します。" >&2
-    continue
+  if ! commits="$(gh api --paginate --slurp "repos/${REPOSITORY}/pulls/${number}/commits?per_page=100" | jq '[add[] | {sha, html_url, message: .commit.message, committedAt: .commit.committer.date, authoredAt: .commit.author.date}]')"; then
+    echo "エラー: PR #${number} のコミットを取得できません。既存のレポートは変更せず終了します。" >&2
+    exit 1
   fi
   jq -n --argjson detail "$detail" --arg body "$body" --argjson commits "$commits" \
     '$detail + {body: $body, commits: $commits}' >> "$TEMP_DIR/target-prs.jsonl"
@@ -164,7 +164,10 @@ while IFS= read -r pr_number; do
   issue_created_fallback=''
   first_issue_number="$(jq -r '.[0] // empty' <<<"$closed_issue_numbers")"
   if [[ -n "$first_issue_number" ]]; then
-    issue_created_fallback="$(gh issue view "$first_issue_number" --repo "$REPOSITORY" --json createdAt --jq .createdAt 2>/dev/null || true)"
+    if ! issue_created_fallback="$(gh issue view "$first_issue_number" --repo "$REPOSITORY" --json createdAt --jq .createdAt 2>/dev/null)"; then
+      echo "エラー: Issue #${first_issue_number} の作成日時を取得できません。既存のレポートは変更せず終了します。" >&2
+      exit 1
+    fi
   fi
   IFS=$'\t' read -r pr_start pr_start_source <<< "$(choose_start "$branch" "$commits" "$issue_created_fallback" "$pr_created")"
   pr_end="${merged_at:-$closed_at}"
@@ -186,8 +189,8 @@ while IFS= read -r pr_number; do
   [[ -n "$merged_at" ]] || continue
   while IFS= read -r issue_number; do
     if ! issue="$(gh issue view "$issue_number" --repo "$REPOSITORY" --json number,title,url,body,createdAt,closedAt,assignees,milestone 2>/dev/null)"; then
-      echo "警告: Issue #${issue_number} を取得できないため除外します。" >&2
-      continue
+      echo "エラー: Issue #${issue_number} の詳細を取得できません。既存のレポートは変更せず終了します。" >&2
+      exit 1
     fi
     issue_created="$(jq -r '.createdAt // empty' <<<"$issue")"
     issue_closed="$(jq -r '.closedAt // empty' <<<"$issue")"

@@ -4,7 +4,7 @@ const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 
-const source = path.resolve(__dirname, '..');
+const source = path.resolve(__dirname, '..', '..');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'milestone-test-'));
 const repo = path.join(temp, 'repo');
 const bin = path.join(temp, 'bin');
@@ -26,7 +26,7 @@ try {
     'case "$1 $2" in',
     "  'repo view') echo example/team ;;",
     "  'api --paginate') echo '[[{\"title\":\"lec06\"}]]' ;;",
-    "  'api repos/example/team/issues/1') if [[ \"$*\" == *'.state'* ]]; then echo open; fi ;;",
+    "  'api repos/example/team/issues/1') if [[ \"$*\" == *'.state'* ]]; then echo open; elif [[ \"$*\" == *'milestone.title'* ]]; then echo \"$MOCK_ISSUE_MILESTONE\"; fi ;;",
     "  'issue list'|'pr list') : ;;",
     "  'issue view') if [[ \"$*\" == *'--json milestone'* ]]; then echo \"$MOCK_ISSUE_MILESTONE\"; elif [[ \"$*\" == *'--json title'* ]]; then echo 'Example issue'; elif [[ \"$*\" == *'--json state'* ]]; then echo OPEN; else echo '{}'; fi ;;",
     '  \'issue create\') echo "issue create $*" >> "$MOCK_LOG"; echo https://github.com/example/team/issues/1 ;;',
@@ -73,6 +73,13 @@ try {
   const validPr = run('scripts/pr/create-pr.sh', ['lec06'], 'lec06');
   assert.equal(validPr.status, 0, validPr.stderr);
   assert.match(fs.readFileSync(log, 'utf8'), /pr create .*--milestone lec06/);
+  for (const milestone of ['', 'lec15']) {
+    const result = run('scripts/issue/validate-milestone.sh', ['1'], milestone);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /GitHub上のMilestone/);
+  }
+  const validValidation = run('scripts/issue/validate-milestone.sh', ['1'], 'lec06');
+  assert.equal(validValidation.status, 0, validValidation.stderr);
   process.stdout.write('milestone registration fixture test passed\n');
 } finally {
   fs.rmSync(temp, {recursive: true, force: true});

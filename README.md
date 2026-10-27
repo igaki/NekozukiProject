@@ -207,7 +207,7 @@ bash scripts/issue/register-from-file.sh docs/temp/issues.md
 ```
 
 スクリプトは質問をせず，草案を検査して問題がなければ登録します．
-GitHubのIssue Formから直接登録するときは、フォームのMilestone選択に加え、作成後にGitHubのMilestone欄へ同じ値を設定してください。フォームの回答欄だけではGitHub上のMilestoneは設定されません。
+GitHubのIssue Formから直接登録するときは、フォームのMilestone選択に加え、作成後にGitHubのMilestone欄へ同じ値を設定してください。フォームの回答欄だけではGitHub上のMilestoneは設定されません。作成・編集・Milestone設定／解除時にGitHub Actionsが実際の設定値を検査し、未設定またはlec06～lec14以外なら失敗を表示します。Issue Formからの作成自体は停止できないため、失敗を確認したらGitHubのMilestone欄を修正してください。
 
 ### スクリプトが確認すること
 
@@ -484,7 +484,7 @@ bash scripts/report/weekly-summary.sh --milestone lec06
 bash scripts/report/weekly-summary.sh --milestone lec07 --student fukuyasu
 ```
 
-`--milestone` は必須で、`lec06`～`lec14` のGitHub上に存在するMilestoneを指定します．存在しない場合は作成方法を案内して停止します．全Issue・PRの中にMilestone未割当があれば番号を警告し、割当後に同じコマンドを再実行するよう案内して停止します．JSONの差し替えは行いません．
+`--milestone` は必須で、`lec06`～`lec14` のGitHub上に存在するMilestoneを指定します．存在しない場合は作成方法を案内して停止します．全Issue・PRの中にMilestone未割当があれば番号を警告し、割当後に同じコマンドを再実行するよう案内して停止します．PR・Issue・コミットの取得に失敗した場合も集計を停止します．これらの停止時は既存のJSON・HTMLを差し替えず、バックアップも作りません．
 
 ### 出力物と確認
 
@@ -572,6 +572,7 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/fukuyasu/lec
 | Issue 草案の構造表示 | `.github/prompts/plan-issues.prompt.md` に埋め込まれた PortableGit の `grep` コマンド | `docs/temp/issues.md` の Issue ブロック数，AC 見出し数，実装計画見出し数を数える．開始条件に関する記載箇所と行末空白を表示する．この処理は独立したスクリプトではない． |
 | Issue 本文の形式検査 | `scripts/lib/markdown-format.sh` を `scripts/issue/register-from-file.sh` が読み込む | 必須見出しが各1回あること，必須本文が空でないこと，草案 ID・題名が重複しないことを検査する． |
 | Issue 登録 | `scripts/issue/register-from-file.sh` | 担当者と既存Milestoneの記入，依存先 Issue の存在と Open 状態を検査する．成功時は Milestone付きで Issue を作成し，依存関係を設定する． |
+| GitHub上のIssue Milestone検査 | `.github/workflows/validate-issue-milestone.yml`、`scripts/issue/validate-milestone.sh` | Issue作成後などにGitHub上のMilestoneを取得し、lec06～lec14以外ならActionを失敗させる．Issue Formの本文選択だけでは合格しない． |
 | 着手可能 Issue とブランチ作成 | `scripts/issue/ready.sh` | `git diff` と `git diff --cached` で追跡済みの変更を検査する．`gh issue view` で Issue の Open 状態，Open な依存 Issue，担当者を確認する．成功時は `git fetch origin main` と `git switch -c <branch> origin/main` を実行する． |
 | PR 本文の形式・関連 Issue 検査 | `scripts/pr/validate-body.sh` | PR 本文の必須見出し・必須本文を検査する．`--check-related-issues` 使用時は，関連 Issue の存在，Issue であること，`Closes` の対象が Open であることを GitHub API で検査する． |
 | PR 登録 | `scripts/pr/create-pr.sh` | ブランチ名，追跡済みの未コミット変更，PR 本文ファイル，関連 Issue，既存Milestoneとの一致を検査する．成功時は `git push` と Milestone付きの `gh pr create` を実行する． |

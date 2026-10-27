@@ -14,6 +14,7 @@
 
 `depends-on` は空欄、同時に登録する草案のID、または既存のOpen Issue番号をカンマ区切りで記載できる。既存Issue番号は登録スクリプトがOpenであることを検査する。
 草案メタデータの `milestone:` は必須で、`lec06`～`lec14` の既存Milestoneを指定する。PRには関連Issueと同じMilestoneを設定する。
+GitHub Issue FormのMilestone欄は本文へ転記される入力欄であり、GitHub上のMilestone設定とは別である。直接作成したIssueは `.github/workflows/validate-issue-milestone.yml` が実際の設定値を作成後に検査する。
 
 ## Pull Request
 

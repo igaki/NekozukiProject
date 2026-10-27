@@ -1,12 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { Presentation, PresentationFile } from "file:///C:/Users/Hiroshi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/@oai/artifact-tool/dist/artifact_tool.mjs";
 
-const ROOT = "C:/Users/Hiroshi/oithomes/isdev/kadai/isdev26/NekozukiProject";
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SKILL = "C:/Users/Hiroshi/.codex/plugins/cache/openai-primary-runtime/presentations/26.1022.11436/skills/presentations";
 const OUT = path.join(ROOT, "docs", "team-development-flow_A-B_final.pptx");
-const BUILD = path.join(ROOT, ".codex-build", "ppt-build");
+const BUILD = path.join(ROOT, "not-for-distribution", ".codex-build", "ppt-build");
 const W = 1280, H = 720;
 const FONT = "Yu Gothic";
 
