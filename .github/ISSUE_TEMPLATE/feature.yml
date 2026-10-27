@@ -36,3 +36,20 @@ body:
     attributes:
       label: 依存するIssue
       description: "例: #12。OpenなIssue番号だけを記載する。草案から登録する場合はスクリプトが検査する。"
+  - type: dropdown
+    id: milestone
+    attributes:
+      label: Milestone
+      description: "選択後、GitHubのMilestone欄にも同じ値を設定する。"
+      options:
+        - lec06
+        - lec07
+        - lec08
+        - lec09
+        - lec10
+        - lec11
+        - lec12
+        - lec13
+        - lec14
+    validations:
+      required: true

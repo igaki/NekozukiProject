@@ -28,43 +28,63 @@ function Send-Response($client, $statusCode, $contentType, $body) {
   $stream.Flush()
 }
 
+function Read-ReportData {
+  $data = Get-Content -LiteralPath $DataPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ($data.schemaVersion -ne 3) { throw 'Unsupported report JSON version.' }
+  return $data
+}
+
+function Write-ReportData($data) {
+  $temporaryPath = "$DataPath.tmp"
+  [System.IO.File]::WriteAllText($temporaryPath, ($data | ConvertTo-Json -Depth 30), [System.Text.UTF8Encoding]::new($false))
+  Move-Item -LiteralPath $temporaryPath -Destination $DataPath -Force
+}
+
 function Save-AiUsage($requestBody) {
   $update = $requestBody | ConvertFrom-Json
-  if ([string]::IsNullOrWhiteSpace($update.issue) -or [string]::IsNullOrWhiteSpace($update.level)) {
-    throw 'issue and level are required.'
+  if ([string]$update.pr -notmatch '^[1-9][0-9]*$') { throw 'A PR number is required.' }
+  $allowed = 'none', 'brainstorm', 'plan-issues', 'implement-issue', 'prepare-pr', 'debug', 'review-pr', 'other'
+  $choices = @($update.choices)
+  if ($choices.Count -gt $allowed.Count -or @($choices | Select-Object -Unique).Count -ne $choices.Count) { throw 'Invalid AI choices.' }
+  foreach ($choice in $choices) { if ($allowed -notcontains $choice) { throw 'Invalid AI choice.' } }
+  if ($choices -contains 'none' -and $choices.Count -gt 1) { throw 'No AI usage cannot be combined with other choices.' }
+  $other = [string]$update.other
+  if ($other.Length -gt 500 -or ($choices -notcontains 'other' -and $other.Length -gt 0)) { throw 'Invalid other AI usage.' }
+  $data = Read-ReportData
+  if (-not @($data.closedPullRequests | Where-Object { $_.number -eq [int]$update.pr }).Count) { throw 'PR is not in this report.' }
+  $entry = [pscustomobject]@{ choices = $choices; other = $other; updatedAt = (Get-Date).ToString('o') }
+  $data.aiUsage | Add-Member -MemberType NoteProperty -Name ([string]$update.pr) -Value $entry -Force
+  Write-ReportData $data
+}
+
+function Save-DodAssessment($requestBody) {
+  $update = $requestBody | ConvertFrom-Json
+  $item = [string]$update.item
+  $choice = [string]$update.choice
+  if ($item -notmatch '^[1-7]$') { throw 'Invalid DoD item.' }
+  $allowed = '', 'no_activity', 'all', 'some_not', 'most_not', 'none_done'
+  if ($allowed -notcontains $choice) { throw 'Invalid DoD choice.' }
+  $data = Read-ReportData
+  if ($choice -eq '') {
+    $data.dodAssessment.PSObject.Properties.Remove($item)
+  } else {
+    $entry = [pscustomobject]@{ choice = $choice; updatedAt = (Get-Date).ToString('o') }
+    $data.dodAssessment | Add-Member -MemberType NoteProperty -Name $item -Value $entry -Force
   }
-  $allowed = 'none', 'light', 'medium', 'high', 'unanswered'
-  if ($allowed -notcontains $update.level) { throw 'Invalid AI usage level.' }
-  $data = Get-Content -LiteralPath $DataPath -Raw -Encoding UTF8 | ConvertFrom-Json
-  if ($null -eq $data.aiUsage) {
-    $data | Add-Member -NotePropertyName aiUsage -NotePropertyValue ([pscustomobject]@{})
-  }
-  $entry = [pscustomobject]@{ level = $update.level; updatedAt = (Get-Date).ToString('o') }
-  $data.aiUsage | Add-Member -NotePropertyName ([string]$update.issue) -NotePropertyValue $entry -Force
-  $temporaryPath = "$DataPath.tmp"
-  $data | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $temporaryPath -Encoding UTF8
-  Move-Item -LiteralPath $temporaryPath -Destination $DataPath -Force
+  Write-ReportData $data
 }
 
 function Read-ReportHtml {
   $html = Get-Content -LiteralPath $HtmlPath -Raw -Encoding UTF8
-  $reportJson = Get-Content -LiteralPath $DataPath -Raw -Encoding UTF8
-  # 旧形式ではtroubleshootingが配列ではなく単一オブジェクトとして保存された。
-  # 既存の記録も表示できるよう、配信用データだけを互換形式に変換する。
-  $report = $reportJson | ConvertFrom-Json
-  if ($null -ne $report.troubleshooting -and $report.troubleshooting -isnot [array]) {
-    $report.troubleshooting = @($report.troubleshooting)
-    $report.summary.troubleshootingCount = $report.troubleshooting.Count
-    $reportJson = $report | ConvertTo-Json -Depth 30 -Compress
-  }
+  $reportJson = (Get-Content -LiteralPath $DataPath -Raw -Encoding UTF8).Replace('<', '\u003c')
   $prefix = '<script>const report='
-  $suffix = ';const q='
+  $suffix = ';/*WEEKLY_SUMMARY_DATA_END*/'
   $start = $html.IndexOf($prefix)
   if ($start -lt 0) { throw 'The report HTML does not contain the report data placeholder.' }
   $start += $prefix.Length
   $end = $html.IndexOf($suffix, $start)
   if ($end -lt 0) { throw 'The report HTML does not contain the report data terminator.' }
-  $options = Get-ChildItem -LiteralPath $dataDirectory -File -Filter '*.json' |
+  $options = Get-ChildItem -LiteralPath $dataDirectory -File -Filter 'lec*.json' |
     Sort-Object -Property Name -Descending |
     ForEach-Object {
       $selected = if ($_.FullName -eq $DataPath) { ' selected' } else { '' }
@@ -116,11 +136,17 @@ try {
         if ([string]::IsNullOrEmpty($headerLine)) { break }
         if ($headerLine -match '^Content-Length:\s*(\d+)$') { $contentLength = [int]$Matches[1] }
       }
+      if ($contentLength -gt 16384) { throw 'Request body is too large.' }
       $requestBody = ''
       if ($contentLength -gt 0) {
         $chars = New-Object char[] $contentLength
-        $read = $reader.Read($chars, 0, $contentLength)
-        $requestBody = -join $chars[0..($read - 1)]
+        $read = 0
+        while ($read -lt $contentLength) {
+          $chunk = $reader.Read($chars, $read, $contentLength - $read)
+          if ($chunk -le 0) { throw 'Incomplete request body.' }
+          $read += $chunk
+        }
+        $requestBody = -join $chars
       }
       switch ($path) {
         '/' {
@@ -136,6 +162,11 @@ try {
         '/api/ai-usage' {
           if ($method -ne 'POST') { Send-Response $client 405 'text/plain; charset=utf-8' 'Method Not Allowed'; break }
           Save-AiUsage $requestBody
+          Send-Response $client 200 'application/json; charset=utf-8' '{"ok":true}'
+        }
+        '/api/dod-assessment' {
+          if ($method -ne 'POST') { Send-Response $client 405 'text/plain; charset=utf-8' 'Method Not Allowed'; break }
+          Save-DodAssessment $requestBody
           Send-Response $client 200 'application/json; charset=utf-8' '{"ok":true}'
         }
         default { Send-Response $client 404 'text/plain; charset=utf-8' 'Not Found' }

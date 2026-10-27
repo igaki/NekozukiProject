@@ -25,12 +25,30 @@ fi
 [[ -n "$POWERSHELL_EXE" ]] || { echo 'エラー: Windows PowerShellが見つかりません。' >&2; exit 1; }
 
 LOGIN="$(gh api user --jq .login)"
-REPORT_FILE="docs/weekly-summary_${LOGIN}.html"
-DATA_DIR="docs/weekly-summary-data/${LOGIN}"
+STUDENT="$LOGIN"
+STUDENT_SPECIFIED=false
+if [[ "${1:-}" == "--student" ]]; then
+  [[ "$#" -ge 2 ]] || { echo 'エラー: --student にはGitHub名が必要です。' >&2; exit 2; }
+  STUDENT="$2"
+  STUDENT_SPECIFIED=true
+  shift 2
+fi
+[[ "$STUDENT" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,38}$ ]] || { echo 'エラー: 学生のGitHub名が不正です。' >&2; exit 2; }
+[[ "$#" -le 1 ]] || { echo "使い方: $0 [--student GitHub名] [JSONファイル]" >&2; exit 2; }
 DATA_FILE="${1:-}"
+if [[ "$DATA_FILE" =~ ^docs/weekly-summary-data/([A-Za-z0-9-]+)/[^/]+\.json$ ]]; then
+  FILE_STUDENT="${BASH_REMATCH[1]}"
+  if [[ "$STUDENT_SPECIFIED" == true && "$STUDENT" != "$FILE_STUDENT" ]]; then
+    echo 'エラー: --student とJSONファイルの学生が一致しません。' >&2
+    exit 2
+  fi
+  STUDENT="$FILE_STUDENT"
+fi
+REPORT_FILE="docs/weekly-summary_${STUDENT}.html"
+DATA_DIR="docs/weekly-summary-data/${STUDENT}"
 
 if [[ -z "$DATA_FILE" ]]; then
-  latest="$(find "$DATA_DIR" -maxdepth 1 -type f -name '*.json' -printf '%f\n' 2>/dev/null | sort | tail -n 1 || true)"
+  latest="$(find "$DATA_DIR" -maxdepth 1 -type f -name 'lec*.json' -printf '%T@ %f\n' 2>/dev/null | sort -nr | head -n 1 | cut -d' ' -f2- || true)"
   [[ -n "$latest" ]] || { echo 'エラー: 表示できる週次JSONがありません。先に weekly-summary.sh を実行してください。' >&2; exit 1; }
   DATA_FILE="${DATA_DIR}/${latest}"
 fi

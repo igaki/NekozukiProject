@@ -11,6 +11,9 @@ app_dir=nekoselect
 `/init-project` が、GitHubから取得した最新の Collaborator 一覧でこのブロックを更新する。各Issueの担当者はGitHub上で管理する。
 
 <!-- COLLABORATORS: START -->
+- fukuyasu
+- igaki
+- kiyoshi-honda
 <!-- COLLABORATORS: END -->
 
 ## 開発するアプリケーションの条件
@@ -49,15 +52,13 @@ PortableGit Bash を起動して開発する。JDK、Gradle、GitHub CLIのPATH�
 
 実装を伴うIssueは、次のすべてを満たしたときに完了とする。
 
-1. Issueに担当者、AC、変更境界、実装計画、必要な依存Issueが記録されている。
-2. Issueごとのブランチで実装し、`main` へ直接コミットしていない。
-3. 実装がIssueのACと変更境界の範囲に収まり、範囲外の変更はIssueで合意している。
-4. ACごとに、自動テストまたは手動確認の結果と残る懸念をPR本文へ記録している。
-5. `app_dir` のフォルダで `./gradlew test` が成功している。
-6. Web画面を変更した場合、`app_dir` のフォルダで `./gradlew bootRun` により学生がブラウザで該当ACを確認している。
-7. PRがテンプレートを満たし、Openな完了対象Issueには `Closes #番号`、完了済みIssueの参照には `Refs #番号` を用いている。
-8. 実装者以外がAC・差分・テストをレビューし、CI成功後にマージしている。
-9. デバッグで個別記録を残す場合、その記録を修正コード・回帰テストと同じPRに含めている。
+1. すべてのIssueとPRに、GitHub上で実在するlec06～lec14のMilestoneが設定されている。対応するIssueとPRのMilestoneは一致している。
+2. Issueに担当者とACが記録されている。変更境界、実装計画、依存Issueは必要な場合に記録されている。
+3. Issueごとのブランチで実装し、`main` へ直接コミットしていない。
+4. PR本文の「AC確認結果」に、ACごとの自動テストまたは手動確認の結果と、残る懸念があればその内容を記録している。
+5. Web画面を変更した場合、学生が `./gradlew bootRun` で起動してブラウザで該当ACを確認し、結果をPR本文の「AC確認結果」に記録している。
+6. PR本文に「関連Issue」「変更内容」「AC確認結果」「テスト結果」を記載している。OpenなIssueを完了させる場合は `Closes #番号`、完了済みIssueを参照する場合は `Refs #番号` を使っている。
+7. 実装者以外がAC・差分・テストをレビューしてからマージしている。
 
 ## ドキュメント管理方針
 
@@ -82,11 +83,11 @@ PortableGit Bash を起動して開発する。JDK、Gradle、GitHub CLIのPATH�
 - Issue草案: `docs/temp/issues.md`。登録前の一時ファイルであり、次の計画作成時に上書きしてよい。
 - PR本文の下書き: `docs/temp/pr-<Issue番号>.md`。同じIssueの再作成時は上書きしてよい。
 - 個別デバッグ記録: `docs/trouble/troubleshooting-<GitHubユーザー名>-YYYY-MM-DDTHHMMSS+0900(-連番).md`。JST時刻を秒まで含め、Windowsで使えないコロンは使わない。
-- 週次振り返りJSON: `docs/weekly-summary-data/<GitHubユーザー名>/YYYY-MM-DD_HHMM-JST(-連番).json`。HTMLは `docs/weekly-summary_<GitHubユーザー名>.html` とする。いずれもローカル生成物である。
+- 週次振り返りJSON: `docs/weekly-summary-data/<GitHubユーザー名>/lecXX.json`。同じMilestoneの再集計時は日時付き `.bak` を残して差し替える。HTMLは `docs/weekly-summary_<GitHubユーザー名>.html` とする。いずれもローカル生成物である。
 
 ### 作成・変更のルール
 
 1. `/brainstorm`、`/plan-issues`、`/prepare-pr` が作る `docs/temp/` の内容は、学生が確認するための下書きであり、Gitへ追加しない。
 2. `debug` Skillは、学生が記録を残すと選んだ場合だけ `docs/trouble/` に個別記録を作る。記録には少なくとも、再現条件、原因、修正、再発防止テストを含める。
-3. `weekly-summary.sh` は、個人のJSON記録と閲覧用HTMLを作る。JSONを削除すればその記録を削除できる。これらをPRへ含めない。
+3. `weekly-summary.sh` は、Milestone別の個人JSON記録と閲覧用HTMLを作る。再集計時は既存JSONのバックアップを残す。これらをPRへ含めない。
 4. プロジェクト全体の前提、共通DoD、文書管理方針を変えるときは、この文書の変更案を学生が確認してから反映する。

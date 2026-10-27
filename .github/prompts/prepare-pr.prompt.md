@@ -6,7 +6,7 @@ description: "実装済みIssueの証拠を集め、学生との対話を通じ�
 PRを作成・pushしない。一度に複数段階の質問をしない。
 
 1. 現在のブランチ名からIssue番号を読み取る。読み取れない場合だけ学生へIssue番号を質問する。
-2. Issue本文のAC、git差分、直近のcommitを確認する。
+2. Issue本文のAC、GitHub上のMilestone、git差分、直近のcommitを確認する。Milestoneが空欄ならIssueへ既存のlec06～lec14を設定するよう案内して停止する。
 3. 最初に「何を実装したか」と「実装上で苦労した点」を質問して停止する。
 4. 回答後にIssueのAC一覧を示し、ACごとの確認結果を質問して停止する。
 5. 回答後に、`docs/project.md` の `app_dir` のフォルダで実行した `./gradlew test` の結果を質問して停止する。
@@ -21,4 +21,4 @@ PRを作成・pushしない。一度に複数段階の質問をしない。
    ## AC確認結果
    ## テスト結果
    ```
-8. 作成したファイルのパスと、学生が次に `bash scripts/pr/create-pr.sh` を実行して登録することを報告する。このスクリプトは質問せず、問題があれば警告して停止することも伝える。
+8. 作成したファイルのパスと、学生が次に `bash scripts/pr/create-pr.sh lecXX` を実行して登録することを報告する。このスクリプトはMilestoneが空欄またはGitHub上に存在しない場合、作成前に停止することも伝える。

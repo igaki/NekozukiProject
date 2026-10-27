@@ -13,6 +13,7 @@
 | 変更しないものとリスク | 任意 | 変更しない範囲と注意点を書く。 |
 
 `depends-on` は空欄、同時に登録する草案のID、または既存のOpen Issue番号をカンマ区切りで記載できる。既存Issue番号は登録スクリプトがOpenであることを検査する。
+草案メタデータの `milestone:` は必須で、`lec06`～`lec14` の既存Milestoneを指定する。PRには関連Issueと同じMilestoneを設定する。
 
 ## Pull Request
 

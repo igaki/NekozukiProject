@@ -166,7 +166,7 @@ AI はまず内容を要約し，問題がなければ分割案を表で示し�
 ```
 
 AI は草案を作成した後、登録スクリプトで形式エラーにならないよう、Issue ブロック数・各 Issue の AC 見出し数・実装計画見出し数などを確認し、その結果と未決定事項を報告します。
-この確認は内容の正しさを保証するものではありません。`docs/temp/issues.md` を開き、各 Issue の AC、依存関係、変更範囲、実装計画に問題がないかをチームで確認しましょう。確認後、各 Issue の `assignee:` に担当する学生の GitHub ユーザー名を学生自身が直接記入します。担当者が未記入の草案では登録スクリプトは Issue を登録せず停止するため、記入してから次の登録工程へ進みます。
+この確認は内容の正しさを保証するものではありません。`docs/temp/issues.md` を開き、各 Issue の AC、依存関係、変更範囲、実装計画に問題がないかをチームで確認しましょう。確認後、各 Issue の `assignee:` に担当する学生の GitHub ユーザー名、`milestone:` に `lec06`～`lec14` の既存Milestoneを学生自身が直接記入します。どちらかが未記入なら登録スクリプトは Issue を登録せず停止します。
 
 ### 草案を修正する入力例
 
@@ -191,12 +191,12 @@ docs/temp/issues.md の Issue game-room-join の AC 2 を，
 
 ## 4. 計画b: Issue を登録する(スクリプト:register-from-file.sh)
 
-チームで確認し，担当者を記入した Issue 草案を GitHub Issue として登録します．
+チームで確認し，担当者とMilestoneを記入した Issue 草案を GitHub Issue として登録します．
 
 ### 実施の流れ
 
 1. `docs/temp/issues.md` の内容をチームで確認する．
-2. 各 Issue の `assignee:` に担当する学生の GitHub ユーザー名を記入する．
+2. 各 Issue の `assignee:` に担当する学生の GitHub ユーザー名、`milestone:` に `lec06`～`lec14` を記入する．
 3. 登録スクリプトを実行する．
 4. エラーが出た場合は，指摘された箇所だけを修正して再実行する．
 
@@ -207,11 +207,13 @@ bash scripts/issue/register-from-file.sh docs/temp/issues.md
 ```
 
 スクリプトは質問をせず，草案を検査して問題がなければ登録します．
+GitHubのIssue Formから直接登録するときは、フォームのMilestone選択に加え、作成後にGitHubのMilestone欄へ同じ値を設定してください。フォームの回答欄だけではGitHub上のMilestoneは設定されません。
 
 ### スクリプトが確認すること
 
 - 必須の「機能の概要」「AC」があるか
 - 担当者が決まっているか
+- Milestoneが記入され、GitHub上に存在するか
 - 同じタイトルの Issue をすでに登録していないか
 - 依存先が実在する open Issue か
 
@@ -227,6 +229,7 @@ bash scripts/issue/ready.sh
 
 - GitHub 上に Issue が作成されている．
 - Issue に担当者が設定されている．
+- Issue にMilestoneが設定されている．
 - 各自が自分の Issue の AC を説明できる．
 
 > [!WARNING]
@@ -354,10 +357,10 @@ Copilot Chat の入力欄で，`/prepare-pr` を選んでから次のように�
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
-bash scripts/pr/create-pr.sh
+bash scripts/pr/create-pr.sh lec06
 ```
 
-本文・ブランチ・Issue を検査して問題がなければ push と PR 作成を行います．問題があれば下書きか作業状態を直して再実行します．
+引数に関連Issueと同じMilestoneを必ず指定します．空欄、GitHub上に存在しない値、Issue側と一致しない値なら、push・PR作成前に停止します．本文・ブランチ・Issue を検査して問題がなければ push と PR 作成を行います．
 
 #### 登録後の確認
 
@@ -365,6 +368,7 @@ bash scripts/pr/create-pr.sh
 - `./gradlew test` が成功している．
 - Web UI を変更した場合は `./gradlew bootRun` で AC を確認した．
 - PR 本文に関連 Issue，変更内容，AC 確認結果，テスト結果がある．
+- PRに関連Issueと同じMilestoneが設定されている．
 
 ---
 
@@ -468,30 +472,39 @@ Skill は「期待結果／実際の結果／再現手順／原因候補／候�
 
 1. 集計スクリプトを実行する．
 2. ブラウザで生成された振り返りを確認する．
-3. 必要に応じて過去の JSON を選び，完了 Issue ごとの AI 利用度を入力する．
+3. Close済みPRごとのAI利用と，共通DoDの7項目について自己評価を入力する．必要に応じて別のMilestoneの JSON を選ぶ．
 
 ### 実行コマンド
 
 ```bash
-bash scripts/report/weekly-summary.sh
+# ログイン中の学生について、lec06に属するIssue・PRを集計する
+bash scripts/report/weekly-summary.sh --milestone lec06
+
+# 対象学生を指定する
+bash scripts/report/weekly-summary.sh --milestone lec07 --student fukuyasu
 ```
+
+`--milestone` は必須で、`lec06`～`lec14` のGitHub上に存在するMilestoneを指定します．存在しない場合は作成方法を案内して停止します．全Issue・PRの中にMilestone未割当があれば番号を警告し、割当後に同じコマンドを再実行するよう案内して停止します．JSONの差し替えは行いません．
 
 ### 出力物と確認
 
-実行者ごとに `docs/weekly-summary_<GitHubユーザー名>.html` と `docs/weekly-summary-data/<ユーザー名>/<日時>-JST.json` ができ，ブラウザで開きます．**HTML は閲覧用，JSON が進捗の正本**です．個人のローカル記録で Git 管理しません．削除するときは対応する JSON だけを消します(次回実行時，残った JSON を基準に収集期間を決めます)．
+対象学生ごとに `docs/weekly-summary_<GitHubユーザー名>.html` と `docs/weekly-summary-data/<ユーザー名>/lecXX.json` ができ，ブラウザで開きます．同じMilestoneを再集計すると、既存JSONを `lecXX.backup-YYYY-MM-DD_HHMMSS.json.bak` に保存してから新しいJSONに差し替えます．**HTML は閲覧用，JSON が進捗の正本**です．個人のローカル記録で Git 管理しません．
 
-ページ上部の「表示する記録」で過去の JSON を切り替えられます．完了 Issue ごとの AI 利用度は，選択内容が表示中の JSON に保存されます．ページを閉じるとローカルサーバは約 30 秒後に終了します．
+`--student` を省略すると現在ログイン中のGitHubユーザーを対象にします．日時による絞り込みは行いません．前回入力したAI利用は同じPRについて引き継ぎ、DoD自己評価は対象Issue・PRの集合が変わらない場合に引き継ぎます．
+
+ページ上部の「表示する記録」でMilestone別の JSON を切り替えられます．全体概要はコピーしてスライドへ貼り付けられます．DoD自己評価とClose済みPRごとのAI利用は，選択内容が表示中の JSON に保存されます．未完了エリアには指定Milestoneの全Open PR・Issueを表示します．コミットは対象PRのもの、コメントは対象Issue・PRに付いたものを集計します．Milestoneに紐付かないローカルのtrouble reportは集計対象外です．ページを閉じるとローカルサーバは約 30 秒後に終了します．
 
 ### 過去の記録を開くコマンド
 
 ```bash
 bash scripts/report/open-weekly-summary.sh
-bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/<ユーザー名>/<日時>-JST.json
+bash scripts/report/open-weekly-summary.sh --student fukuyasu
+bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/fukuyasu/lec06.json
 ```
 
 ### 振り返る観点
 
-- 今週実装した内容と対応する Issue・PR
+- 指定Milestoneで実装した内容と対応する Issue・PR
 - デモで見せる操作と結果
 - 自分が理解できたこと，まだ説明できないこと
 - AI の使い方，Skill，プロンプト，ハーネスで次週に改善すること
@@ -510,7 +523,7 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/<ユーザ�
 | Issue を GitHub に登録したい | `bash scripts/issue/register-from-file.sh docs/temp/issues.md` |
 | 次に着手できる Issue を知りたい | `bash scripts/issue/ready.sh` |
 | 実装の進め方を確認したい | `implement-issue` Skill |
-| PR 本文を作りたい | `/prepare-pr` → `bash scripts/pr/create-pr.sh` |
+| PR 本文を作りたい | `/prepare-pr` → `bash scripts/pr/create-pr.sh lec06` |
 | レビューしたい | `/review-pr` |
 | テストが失敗した | `debug` Skill |
 
@@ -527,10 +540,10 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/<ユーザ�
 | 実装計画 | 実施の流れ／入力例／承認後の作業 | `implement-issue Skill を使って…` |
 | テストと動作確認 | 実施の流れ／実行コマンド／確認できた状態 | `app_dir` のフォルダで `./gradlew test`，`./gradlew bootRun` |
 | PR 本文作成 | 実施の流れ／入力例／次の工程 | `/prepare-pr このブランチの PR 本文を作成したいです。` |
-| PR 登録 | 実施の流れ／実行コマンド／登録後の確認 | `bash scripts/pr/create-pr.sh` |
+| PR 登録 | 実施の流れ／実行コマンド／登録後の確認 | `bash scripts/pr/create-pr.sh lec06` |
 | レビュー | 実施の流れ／入力例／マージ前の確認 | `/review-pr` |
 | デバッグ | 実施の流れ／入力例／終了前の確認 | `debug Skill を使ってください。` |
-| 週次振り返り | 実施の流れ／実行コマンド／出力物 | `bash scripts/report/weekly-summary.sh` |
+| 週次振り返り | 実施の流れ／実行コマンド／出力物 | `bash scripts/report/weekly-summary.sh --milestone lec06` |
 | テンプレート設定の更新 | 実施の流れ／実行コマンド／更新後の確認 | `bash scripts/harness/generate-template-harness.sh` |
 
 ---
@@ -558,15 +571,15 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/<ユーザ�
 | --- | --- | --- |
 | Issue 草案の構造表示 | `.github/prompts/plan-issues.prompt.md` に埋め込まれた PortableGit の `grep` コマンド | `docs/temp/issues.md` の Issue ブロック数，AC 見出し数，実装計画見出し数を数える．開始条件に関する記載箇所と行末空白を表示する．この処理は独立したスクリプトではない． |
 | Issue 本文の形式検査 | `scripts/lib/markdown-format.sh` を `scripts/issue/register-from-file.sh` が読み込む | 必須見出しが各1回あること，必須本文が空でないこと，草案 ID・題名が重複しないことを検査する． |
-| Issue 登録 | `scripts/issue/register-from-file.sh` | 担当者の記入，依存先 Issue の存在と Open 状態を検査する．成功時は `gh issue create` で Issue を作成し，`gh issue edit --add-blocked-by` で依存関係を設定する． |
+| Issue 登録 | `scripts/issue/register-from-file.sh` | 担当者と既存Milestoneの記入，依存先 Issue の存在と Open 状態を検査する．成功時は Milestone付きで Issue を作成し，依存関係を設定する． |
 | 着手可能 Issue とブランチ作成 | `scripts/issue/ready.sh` | `git diff` と `git diff --cached` で追跡済みの変更を検査する．`gh issue view` で Issue の Open 状態，Open な依存 Issue，担当者を確認する．成功時は `git fetch origin main` と `git switch -c <branch> origin/main` を実行する． |
 | PR 本文の形式・関連 Issue 検査 | `scripts/pr/validate-body.sh` | PR 本文の必須見出し・必須本文を検査する．`--check-related-issues` 使用時は，関連 Issue の存在，Issue であること，`Closes` の対象が Open であることを GitHub API で検査する． |
-| PR 登録 | `scripts/pr/create-pr.sh` | ブランチ名，追跡済みの未コミット変更，PR 本文ファイル，関連 Issue を検査する．成功時は `git push` と `gh pr create` を実行する． |
+| PR 登録 | `scripts/pr/create-pr.sh` | ブランチ名，追跡済みの未コミット変更，PR 本文ファイル，関連 Issue，既存Milestoneとの一致を検査する．成功時は `git push` と Milestone付きの `gh pr create` を実行する． |
 | PR 本文の GitHub 側検査 | `.github/workflows/validate-pr-body.yml` | `pull_request_target` で default branch 側の `scripts/pr/validate-body.sh --stdin --check-related-issues` を実行する．PR 側の検査スクリプトは実行しない． |
 | 初期化 | `scripts/harness/init-project.sh` | SSH remote，GitHub CLI 認証，Collaborator 一覧，Spring Bootアプリの自動検出，Gradleテストを検査し，`repository_name`・`app_name`・`app_dir` と開発者一覧を更新する．Collaborator が0人なら停止する． |
 | 自動テスト | `.github/workflows/ci.yml` | Pull Request 作成時と `main` への push 時に，`docs/project.md` の `app_dir` を読み，そのフォルダで `./gradlew test` を実行する． |
 | テンプレート同期 | `scripts/harness/generate-template-harness.sh` | `docs/template-constraints.md` の `HARNESS-CONFIG` から，Issue Form，PR テンプレート，PR 本文検査 Action，`scripts/lib/markdown-format.sh` を生成する． |
-| 週次振り返りの集計 | `scripts/report/weekly-summary.sh` と `scripts/report/server-weekly-summary.ps1` | GitHub API から Issue，PR，コミット，コメントを取得し，`docs/weekly-summary-data/` に JSON，`docs/` に HTML を生成する．ローカルサーバは heartbeat 停止後30秒で終了する． |
+| 週次振り返りの集計 | `scripts/report/weekly-summary.sh`，`scripts/report/weekly-summary-ui.js`，`scripts/report/server-weekly-summary.ps1` | 既存Milestoneを指定し、未割当Issue・PRがないか確認してから対象を集計する．Milestone別JSONをバックアップして差し替え、HTMLを生成する．DoD自己評価とPRごとのAI利用をJSONへ保存する． |
 
 ### GitHub リポジトリ設定による main ブランチ保護
 

@@ -98,6 +98,9 @@ issue_description() {
     if contains "$heading" "${ISSUE_REQUIRED_ARRAY[@]}"; then printf '%s\n' '    validations:' '      required: true'; fi
   done
   printf '%s\n' '  - type: input' '    id: dependencies' '    attributes:' '      label: 依存するIssue' '      description: "例: #12。OpenなIssue番号だけを記載する。草案から登録する場合はスクリプトが検査する。"'
+  printf '%s\n' '  - type: dropdown' '    id: milestone' '    attributes:' '      label: Milestone' '      description: "選択後、GitHubのMilestone欄にも同じ値を設定する。"' '      options:'
+  for number in {06..14}; do printf '        - lec%s\n' "$number"; done
+  printf '%s\n' '    validations:' '      required: true'
 } > "${REPO_ROOT}/.github/ISSUE_TEMPLATE/feature.yml"
 
 {
