@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ルーム一覧 - Nekoselect</title>
+</head>
+
+<body>
+  <main>
+    <h1>対戦ルーム</h1>
+    <p th:if="${roomError}" th:text="${roomError}" role="alert"></p>
+
+    <form th:action="@{/match-room}" method="post">
+      <button type="submit">ルームを作成</button>
+    </form>
+
+    <h2>参加できるルーム</h2>
+    <p th:if="${#lists.isEmpty(rooms)}">参加者のいるルームはまだありません。</p>
+    <ul th:unless="${#lists.isEmpty(rooms)}">
+      <li th:each="room : ${rooms}">
+        <a th:href="@{/match-room/{id}(id=${room.id})}" th:text="'ルーム ' + ${room.id}"></a>
+        （参加者: <span th:text="${#strings.listJoin(room.participants, '、')}"></span>）
+      </li>
+    </ul>
+  </main>
+</body>
+
+</html>
