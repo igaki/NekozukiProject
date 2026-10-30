@@ -544,7 +544,7 @@ Skill は「期待結果／実際の結果／再現手順／原因候補／候�
 
 1. 集計スクリプトを実行する．
 2. ブラウザで生成された振り返りを確認する．
-3. Close済みPRごとのAI利用と，週次振り返り用DoDの6項目について自己評価を入力する．必要に応じて別のMilestoneの JSON を選ぶ．
+3. Close済み担当PRごとのAI利用と，週次振り返り用DoDの6項目について自己評価を入力する．必要に応じて別のMilestoneの JSON を選ぶ．
 
 ### 実行コマンド
 
@@ -558,15 +558,17 @@ bash scripts/report/weekly-summary.sh --milestone lec06
 bash scripts/report/weekly-summary.sh --milestone lec07 --student fukuyasu
 ```
 
-`--milestone` は必須で，`lec06`～`lec14` のGitHub上に存在するMilestoneを指定します．存在しない場合は作成方法を案内して停止します．全Issue・PRの中にMilestone未割当があれば番号を警告し，割当後に同じコマンドを再実行するよう案内して停止します．PR・Issue・コミットの取得に失敗した場合も集計を停止します．これらの停止時は既存のJSON・HTMLを差し替えず，バックアップも作りません．
+`--milestone` は必須で，`lec06`～`lec14` のGitHub上に存在するMilestoneを指定します．存在しない場合は作成方法を案内して停止します．全Issue・PRの中にMilestone未割当があれば番号を警告し，割当後に同じコマンドを再実行するよう案内して集計は続けます．PR・Issue・コミットの取得に失敗した場合は集計を停止し，既存のJSON・HTMLを差し替えず，バックアップも作りません．
 
 ### 出力物と確認
 
 対象学生ごとに `docs/weekly-summary_<GitHubユーザー名>.html` と `docs/weekly-summary-data/<ユーザー名>/lecXX.json` ができ，ブラウザで開きます．同じMilestoneを再集計すると，既存JSONを `lecXX.backup-YYYY-MM-DD_HHMMSS.json.bak` に保存してから新しいJSONに差し替えます．**HTML は閲覧用，JSON が進捗の正本**です．個人のローカル記録で Git 管理しません．
 
-`--student` を省略すると現在ログイン中のGitHubユーザーを対象にします．日時による絞り込みは行いません．前回入力したAI利用は同じPRについて引き継ぎ，DoD自己評価は対象Issue・PRの集合が変わらない場合に引き継ぎます．旧7項目への回答は新しい6項目へ引き継ぎません．
+`--student` を省略すると現在ログイン中のGitHubユーザーを対象にします．日時による絞り込みは行いません．担当PRは，assigneeが設定されていれば自分がassigneeであるPR，未設定なら自分が作成したPRです．前回入力したAI利用は同じClose済み担当PRについて引き継ぎ，DoD自己評価は対象Issue・PRの集合が変わらない場合に引き継ぎます．以前の形式のJSONから回答は引き継ぎません．
 
-ページ上部の「表示する記録」でMilestone別の JSON を切り替えられます．全体概要はコピーしてスライドへ貼り付けられます．DoD自己評価とClose済みPRごとのAI利用は，選択内容が表示中の JSON に保存されます．未完了エリアには指定Milestoneの全Open PR・Issueを表示します．コミットは対象PRのもの，コメントは対象Issue・PRに付いたものを集計します．Milestoneに紐付かないローカルのtrouble reportは集計対象外です．ページを閉じるとローカルサーバは約 30 秒後に終了します．
+ページ上部の「表示する記録」でMilestone別の JSON を切り替えられます．全体概要の「概要をコピー」はレイアウトとGitHubリンクを含むHTML，URL付きテキストをコピーし，貼り付け先が対応する形式で表示します．Close済み担当PRの下には関連Issueと現在のOpen／Closedを表示します．DoD自己評価とClose済み担当PRごとのAI利用は，選択内容が表示中の JSON に保存されます．未完了エリアにはMilestoneや担当者を問わず全Open PR・Issueを表示します．コミットは自分が作成した対象MilestoneのPRのもの，コメントは対象Issue・PRに付いたものを集計します．Milestoneに紐付かないローカルのtrouble reportは集計対象外です．ページを閉じるとローカルサーバは約 30 秒後に終了します．
+
+Issue・PRのGitHubリンクにマウスを重ねると，本文やコメント・レビューをローカルのオーバーレイで確認できます．同じリンクの内容はサーバ稼働中に再利用し，サーバ終了時にメモリから全件破棄します．リンクをクリックするとGitHubの元ページを開けます．DoD自己評価の対象リンクは `Issue#5`，`PR#8` のように種類を表示します．
 
 ### 過去の記録を開くコマンド
 
@@ -658,7 +660,7 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/fukuyasu/lec
 | 初期化 | `scripts/harness/init-project.sh` | SSH remote，GitHub CLI 認証，Collaborator 一覧，Spring Bootアプリの自動検出，Gradleテストを検査し，`repository_name`・`app_name`・`app_dir` と開発者一覧を更新する．Collaborator が0人なら停止する． |
 | 自動テスト | `.github/workflows/ci.yml` | Pull Request 作成時と `main` への push 時に，`docs/project.md` の `app_dir` を読み，そのフォルダで `./gradlew test` を実行する． |
 | テンプレート同期 | `scripts/harness/generate-template-harness.sh` | `docs/template-constraints.md` の `HARNESS-CONFIG` から，Issue Form，PR テンプレート，PR 本文検査 Action，`scripts/lib/markdown-format.sh` を生成する． |
-| 週次振り返りの集計 | `scripts/report/weekly-summary.sh`，`scripts/report/weekly-summary-ui.js`，`scripts/report/server-weekly-summary.ps1` | 既存Milestoneを指定し，未割当Issue・PRがないか確認してから対象を集計する．Milestone別JSONをバックアップして差し替え，HTMLを生成する．DoD自己評価とPRごとのAI利用をJSONへ保存する． |
+| 週次振り返りの集計 | `scripts/report/weekly-summary.sh`，`scripts/report/weekly-summary-ui.js`，`scripts/report/server-weekly-summary.ps1` | 既存Milestoneを指定し，未割当Issue・PRを警告しながら集計する．Milestone別JSONをバックアップして差し替え，リンク付き概要のHTMLを生成する．DoD自己評価とClose済み担当PRごとのAI利用をJSONへ保存する． |
 
 ### GitHub リポジトリ設定による main ブランチ保護
 

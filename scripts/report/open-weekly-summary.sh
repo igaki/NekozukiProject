@@ -7,7 +7,7 @@ cd "$REPO_ROOT"
 
 [[ -x /usr/local/bin/jq.exe ]] && export PATH="/usr/local/bin:${PATH}"
 
-for command_name in gh git; do
+for command_name in gh git cygpath; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "エラー: ${command_name} が見つかりません。" >&2
     exit 1
@@ -56,7 +56,7 @@ fi
 [[ -f "$REPORT_FILE" ]] || { echo "エラー: HTMLが見つかりません。先に weekly-summary.sh を実行してください。" >&2; exit 1; }
 
 PORT="$((18000 + RANDOM % 1000))"
-"$POWERSHELL_EXE" -NoProfile -ExecutionPolicy Bypass -File "${SCRIPT_DIR}/server-weekly-summary.ps1" -HtmlPath "$(pwd -W)/${REPORT_FILE}" -DataPath "$(pwd -W)/${DATA_FILE}" -Port "$PORT" >/dev/null 2>&1 &
+"$POWERSHELL_EXE" -NoProfile -ExecutionPolicy Bypass -File "${SCRIPT_DIR}/server-weekly-summary.ps1" -HtmlPath "$(pwd -W)/${REPORT_FILE}" -DataPath "$(pwd -W)/${DATA_FILE}" -GhPath "$(cygpath -w "$(command -v gh)")" -Port "$PORT" >/dev/null 2>&1 &
 sleep 1
 echo "表示するJSON: ${DATA_FILE}"
 echo "URL: http://127.0.0.1:${PORT}/"
