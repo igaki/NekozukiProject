@@ -61,10 +61,14 @@ function Save-DodAssessment($requestBody) {
   $update = $requestBody | ConvertFrom-Json
   $item = [string]$update.item
   $choice = [string]$update.choice
-  if ($item -notmatch '^[1-7]$') { throw 'Invalid DoD item.' }
+  if ($item -notmatch '^[1-6]$') { throw 'Invalid DoD item.' }
   $allowed = '', 'no_activity', 'all', 'some_not', 'most_not', 'none_done'
   if ($allowed -notcontains $choice) { throw 'Invalid DoD choice.' }
   $data = Read-ReportData
+  if ($data.dodQuestionsVersion -ne 2) {
+    $data.dodAssessment = [pscustomobject]@{}
+    $data | Add-Member -MemberType NoteProperty -Name dodQuestionsVersion -Value 2 -Force
+  }
   if ($choice -eq '') {
     $data.dodAssessment.PSObject.Properties.Remove($item)
   } else {

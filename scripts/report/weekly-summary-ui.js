@@ -20,21 +20,21 @@ const aiOptions = [
   ['other', 'その他']
 ];
 const dodChoices = [
-  ['no_activity', 'Issue/PRを作成・実施できなかった'],
-  ['all', 'すべてのIssue/PRについて実施できた'],
-  ['some_not', '実施できなかったIssue/PRが一部ある'],
-  ['most_not', '大半のIssue/PRについて実施できなかった'],
-  ['none_done', 'Issue/PRはあるが、この項目を全く実施できていない']
+  ['no_activity', '該当する活動がなかった'],
+  ['all', 'すべてについて実施できた'],
+  ['some_not', '実施できなかったものが一部ある'],
+  ['most_not', '大半について実施できなかった'],
+  ['none_done', '対象はあるが、この項目を全く実施できていない']
 ];
 const dodQuestions = [
-  '自分が作成したすべてのIssueとPRに、GitHub上でMilestoneを設定し、対応するIssueとPRのMilestoneを揃えましたか？',
-  '自分が作成したすべてのIssueに、担当者とACを記録し、必要な場合は変更境界・実装計画・依存Issueを記録できましたか？',
-  '自分が作成したすべてのPRで、Issueごとのブランチを使い、mainへ直接コミットせずに実装できましたか？',
-  '自分が作成したすべてのPRの「AC確認結果」に、ACごとの確認結果と、残る懸念があればその内容を記録できましたか？',
-  '自分が作成したWeb画面の変更を含むすべてのPRで、学生によるブラウザ確認を行い、結果を「AC確認結果」に記録できましたか？',
-  '自分が作成したすべてのPRに「関連Issue」「変更内容」「AC確認結果」「テスト結果」を記載し、Closes／Refsを適切に使えましたか？',
-  '自分が作成したすべてのPRで、実装者以外によるAC・差分・テストのレビューを受けてからマージできましたか？'
+  '自分が担当したすべてのIssueとPRにGitHub上でMilestoneを設定し、対応するIssueとPRのMilestoneが一致していますか？',
+  '自分が担当したすべてのIssueに、担当者とACを記録し、必要な場合は変更ファイル・実装計画・依存Issueを記録できましたか？',
+  '自身のすべてのコミットについて、mainへ直接コミットせず、Issueごとのブランチで実装できましたか？',
+  '自分が担当したすべてのPRの「AC確認結果」について、必要に応じて実際にアプリを動かして確認し、残る懸念があればその内容を記録できましたか？',
+  '自分が担当したすべてのPRに「関連Issue」「変更内容」「AC確認結果」を記載していますか？また、Closes／Refsを適切に使えましたか？',
+  '自分が作成したすべてのPRが、実装者以外によるAC・差分のレビューを受けてからマージされていますか？'
 ];
+if (report.dodQuestionsVersion !== 2) report.dodAssessment = {};
 const dodLabel = id => dodChoices.find(([key]) => key === report.dodAssessment?.[id]?.choice)?.[1] || '未選択';
 const aiLabel = number => {
   const answer = report.aiUsage?.[String(number)];
@@ -98,11 +98,12 @@ function renderOverview() {
 function renderDodForm() {
   q('#dod-form-items').innerHTML = dodQuestions.map((question, index) => {
     const id = String(index + 1);
-    const targets = index === 0 ? [...report.dodIssues, ...report.dodPullRequests] : index === 1 ? report.dodIssues : report.dodPullRequests;
-    const kind = index === 0 ? 'Issue・PR' : index === 1 ? 'Issue' : 'PR';
+    const targets = index === 0 ? [...report.dodIssues, ...report.dodPullRequests] : index === 1 ? report.dodIssues : index === 5 ? (report.dodCreatedPullRequests || []) : index === 2 ? [] : report.dodPullRequests;
+    const kind = index === 0 ? 'Issue・PR' : index === 1 ? 'Issue' : index === 2 ? 'コミット' : 'PR';
     const links = targets.map(item => link(item.url, `#${item.number}`)).join('、') || '対象なし';
-    const note = index === 4 ? '<p class="meta">このうちWeb画面を変更したPRについて回答してください。該当するPRがなければ最初の選択肢を選びます。</p>' : '';
-    return `<div class="dod-item"><label class="label" for="dod-${id}">${id}. ${esc(question)}</label><p class="meta">対象${kind}: ${targets.length}件 — ${links}</p>${note}<div class="select is-fullwidth"><select id="dod-${id}" data-dod="${id}"><option value="">未選択</option>${dodChoices.map(([value, label]) => `<option value="${value}" ${report.dodAssessment?.[id]?.choice === value ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></div><p class="save-status" id="dod-status-${id}" aria-live="polite"></p></div>`;
+    const note = index === 2 ? '<p class="meta">自身の全コミットはGit履歴で確認してください。この画面のコミット一覧にはMilestoneのPR外やmainへの直接コミットは表示されません。</p>' : '';
+    const targetInfo = index === 2 ? '' : `<p class="meta">対象${kind}: ${targets.length}件 — ${links}</p>`;
+    return `<div class="dod-item"><label class="label" for="dod-${id}">${id}. ${esc(question)}</label>${targetInfo}${note}<div class="select is-fullwidth"><select id="dod-${id}" data-dod="${id}"><option value="">未選択</option>${dodChoices.map(([value, label]) => `<option value="${value}" ${report.dodAssessment?.[id]?.choice === value ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></div><p class="save-status" id="dod-status-${id}" aria-live="polite"></p></div>`;
   }).join('');
 }
 

@@ -26,7 +26,8 @@ try {
   const pr = (number, title, author, createdAt, closedAt, mergedAt, mergedBy, state) => ({
     number, title, url: `https://github.com/example/team/pull/${number}`, body: `${title}の説明`,
     author: {login: author}, createdAt, closedAt, mergedAt, mergedBy: mergedBy ? {login: mergedBy} : null,
-    headRefName: `issue-${number}`, state, milestone: {title: number === 13 ? 'lec07' : 'lec06'}
+    headRefName: `issue-${number}`, state, assignees: [{login: author}, ...(number === 11 ? [{login: 'alice'}] : [])],
+    milestone: {title: number === 13 ? 'lec07' : 'lec06'}
   });
   const pulls = [
     pr(10, '実装PR', 'alice', '2026-10-02T00:00:00Z', '2026-10-03T00:00:00Z', '2026-10-03T00:00:00Z', 'bob', 'MERGED'),
@@ -40,10 +41,11 @@ try {
   const issue = (number, title, author, state, closedAt) => ({number, title, user: {login: author}, assignees: [{login: author}], state, milestone: {title: number === 4 ? 'lec07' : 'lec06'},
     created_at: '2026-10-02T00:00:00Z', closed_at: closedAt, html_url: `https://github.com/example/team/issues/${number}`, body: `${title}の説明`});
   const issues = [issue(1, '連動Issue', 'alice', 'closed', '2026-10-03T00:00:00Z'),
-    issue(2, '手動Issue', 'alice', 'closed', '2026-10-04T00:00:00Z'),
+    issue(2, '手動Issue', 'bob', 'closed', '2026-10-04T00:00:00Z'),
     issue(3, '他学生の未完了Issue', 'bob', 'open', null),
     issue(4, '別MilestoneのIssue', 'alice', 'open', null),
     issue(5, '他学生のPRでCloseされたIssue', 'alice', 'closed', '2026-10-04T00:00:00Z')];
+  issues[1].assignees = [{login: 'alice'}];
   write('issues.json', [issues]);
   write('issue1.json', {number: 1, title: '連動Issue', url: issues[0].html_url, body: issues[0].body,
     createdAt: issues[0].created_at, closedAt: issues[0].closed_at, assignees: [{login: 'alice'}], milestone: {title: 'lec06'}});
@@ -123,7 +125,9 @@ esac
   assert.deepEqual(data.openPullRequests.map(item => item.number), [12]);
   assert.deepEqual(data.openIssues.map(item => item.number), [3]);
   assert.deepEqual(data.dodIssues.map(item => item.number), [1, 2, 5]);
-  assert.deepEqual(data.dodPullRequests.map(item => item.number), [10]);
+  assert.deepEqual(data.dodPullRequests.map(item => item.number), [10, 11]);
+  assert.deepEqual(data.dodCreatedPullRequests.map(item => item.number), [10]);
+  assert.equal(data.dodQuestionsVersion, 2);
   assert.equal(data.closedPullRequests[0].durationSeconds, 82800);
   const elements = new Map();
   const document = {querySelector(selector) {
@@ -135,7 +139,19 @@ esac
     report: data, document, location: {}, navigator: {}, fetch: () => Promise.resolve({ok: true}), setInterval() {}
   });
   assert.match(elements.get('#overview-text').value, /DoD自己評価:/);
-  assert.match(elements.get('#dod-form-items').innerHTML, /自分が作成したすべてのIssue/);
+  const expectedDodQuestions = [
+    '自分が担当したすべてのIssueとPRにGitHub上でMilestoneを設定し、対応するIssueとPRのMilestoneが一致していますか？',
+    '自分が担当したすべてのIssueに、担当者とACを記録し、必要な場合は変更ファイル・実装計画・依存Issueを記録できましたか？',
+    '自身のすべてのコミットについて、mainへ直接コミットせず、Issueごとのブランチで実装できましたか？',
+    '自分が担当したすべてのPRの「AC確認結果」について、必要に応じて実際にアプリを動かして確認し、残る懸念があればその内容を記録できましたか？',
+    '自分が担当したすべてのPRに「関連Issue」「変更内容」「AC確認結果」を記載していますか？また、Closes／Refsを適切に使えましたか？',
+    '自分が作成したすべてのPRが、実装者以外によるAC・差分のレビューを受けてからマージされていますか？'
+  ];
+  const dodHtml = elements.get('#dod-form-items').innerHTML;
+  for (const question of expectedDodQuestions) assert.ok(dodHtml.includes(question), question);
+  assert.equal((dodHtml.match(/data-dod=/g) || []).length, 6);
+  assert.match(dodHtml, /対象Issue・PR: 5件/);
+  assert.match(dodHtml, /自身の全コミットはGit履歴で確認/);
   assert.match(elements.get('#dod-overview').innerHTML, /未選択/);
   assert.match(elements.get('#details').innerHTML, /AI利用（複数選択可）/);
   assert.match(elements.get('#details').innerHTML, /href="https:\/\/github\.com\/example\/team\/commit\/abcdef123456"/);
@@ -143,7 +159,7 @@ esac
   assert.match(elements.get('#unfinished').innerHTML, /他学生の未完了Issue/);
   const dodSelect = {dataset: {dod: '1'}, value: 'all', disabled: false};
   await elements.get('#dod-form-items').handlers.change({target: {closest: () => dodSelect}});
-  assert.match(elements.get('#overview-text').value, /1\. すべてのIssue\/PRについて実施できた/);
+  assert.match(elements.get('#overview-text').value, /1\. すべてについて実施できた/);
   const htmlPath = path.join(repo, 'docs', 'weekly-summary_alice.html');
   const dataPath = path.join(dataDir, firstFile);
   assert.match(fs.readFileSync(htmlPath, 'utf8'), /DoD自己評価/);
@@ -165,6 +181,7 @@ esac
       body: JSON.stringify(payload).replace(/[^\x00-\x7f]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`)});
     const dodResponse = await post('/api/dod-assessment', {item: '1', choice: 'all'});
     assert.equal(dodResponse.status, 200, await dodResponse.text());
+    assert.equal((await post('/api/dod-assessment', {item: '7', choice: 'all'})).status, 400);
     const aiResponse = await post('/api/ai-usage', {pr: '10', choices: ['debug', 'other'], other: '相談した'});
     assert.equal(aiResponse.status, 200, await aiResponse.text());
     assert.equal((await post('/api/ai-usage', {pr: '10', choices: ['none', 'debug'], other: ''})).status, 400);
@@ -201,6 +218,7 @@ esac
   assert.deepEqual(bobData.completedIssues.map(item => item.number), [5]);
   assert.deepEqual(bobData.dodIssues.map(item => item.number), [3]);
   assert.deepEqual(bobData.dodPullRequests.map(item => item.number), [11]);
+  assert.deepEqual(bobData.dodCreatedPullRequests.map(item => item.number), [11]);
   pulls[3].milestone = null;
   write('pulls.json', pulls);
   const blockedRun = spawnSync(bash, ['-lc', command], {cwd: repo, encoding: 'utf8', timeout: 120000});
@@ -209,6 +227,16 @@ esac
   assert.match(blockedRun.stderr, /PR #13/);
   assert.deepEqual(JSON.parse(fs.readFileSync(dataPath, 'utf8')), secondData);
   assert.equal(fs.readdirSync(dataDir).filter(name => name.endsWith('.bak')).length, 1);
+  pulls[3].milestone = {title: 'lec07'};
+  write('pulls.json', pulls);
+  const legacyData = {...secondData, dodQuestionsVersion: 1, dodAssessment: {'1': {choice: 'all'}, '7': {choice: 'none_done'}}};
+  fs.writeFileSync(dataPath, JSON.stringify(legacyData));
+  const migratedRun = spawnSync(bash, ['-lc', command], {cwd: repo, encoding: 'utf8', timeout: 120000});
+  if (migratedRun.status !== 0) throw new Error(`legacy weekly-summary failed:\n${migratedRun.stdout}\n${migratedRun.stderr}`);
+  const migratedData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  assert.equal(migratedData.dodQuestionsVersion, 2);
+  assert.deepEqual(migratedData.dodAssessment, {});
+  assert.deepEqual(migratedData.aiUsage['10'].choices, ['debug', 'other']);
   process.stdout.write('weekly-summary fixture test passed\n');
 } finally {
   fs.rmSync(root, {recursive: true, force: true});

@@ -93,7 +93,7 @@ choose_start() {
 
 echo 'PR一覧を取得しています…' >&2
 gh pr list --repo "$REPOSITORY" --state all --limit 10000 \
-  --json number,state,title,url,body,createdAt,closedAt,mergedAt,mergedBy,headRefName,author,milestone > "$TEMP_DIR/all-pulls.json"
+  --json number,state,title,url,body,createdAt,closedAt,mergedAt,mergedBy,headRefName,author,assignees,milestone > "$TEMP_DIR/all-pulls.json"
 gh api --paginate --slurp "repos/${REPOSITORY}/issues?state=all&per_page=100" |
   jq 'add // [] | map(select(.pull_request == null))' > "$TEMP_DIR/all-issues.json"
 
@@ -232,11 +232,13 @@ previous_ai='{}'
 previous_dod='{}'
 previous_issue_numbers='[]'
 previous_pr_numbers='[]'
+previous_created_pr_numbers='[]'
 if [[ -f "$DATA_FILE" ]]; then
   previous_ai="$(jq -c 'if .schemaVersion == 3 then .aiUsage // {} else {} end' "$DATA_FILE")"
-  previous_dod="$(jq -c 'if .schemaVersion == 3 then .dodAssessment // {} else {} end' "$DATA_FILE")"
+  previous_dod="$(jq -c 'if .schemaVersion == 3 and .dodQuestionsVersion == 2 then .dodAssessment // {} else {} end' "$DATA_FILE")"
   previous_issue_numbers="$(jq -c '[.dodIssues[]?.number] | sort' "$DATA_FILE")"
   previous_pr_numbers="$(jq -c '[.dodPullRequests[]?.number] | sort' "$DATA_FILE")"
+  previous_created_pr_numbers="$(jq -c '[.dodCreatedPullRequests[]?.number] | sort' "$DATA_FILE")"
 fi
 
 jq -n \
@@ -251,7 +253,7 @@ jq -n \
   --slurpfile issueComments "$TEMP_DIR/issue-comments.json" \
   --slurpfile reviewComments "$TEMP_DIR/review-comments.json" \
   --argjson aiUsage "$previous_ai" --argjson dodAssessment "$previous_dod" \
-  --argjson previousIssues "$previous_issue_numbers" --argjson previousPrs "$previous_pr_numbers" '
+  --argjson previousIssues "$previous_issue_numbers" --argjson previousPrs "$previous_pr_numbers" --argjson previousCreatedPrs "$previous_created_pr_numbers" '
   def completed: $completed[0] | unique_by(.number); def closedPrs: $closedPrs[0];
   def withoutIssue: $withoutIssue[0]; def manual: $manual[0];
   def targetPrs: $targetPrs[0]; def allPrs: $allPrs[0]; def allIssues: $allIssues[0];
@@ -260,13 +262,15 @@ jq -n \
   def milestoneIssues: allIssues | map(select(.milestone.title == $milestone));
   def openIssues: milestoneIssues | map(select(.state == "open"));
   {
-    schemaVersion: 3, generatedAt: $generatedAt, milestone: $milestone, student: $student,
+    schemaVersion: 3, dodQuestionsVersion: 2, generatedAt: $generatedAt, milestone: $milestone, student: $student,
     closedPullRequests: closedPrs, completedIssues: completed, closedPrsWithoutIssue: withoutIssue, manuallyClosedIssues: manual,
     pullRequests: targetPrs,
     mergedByStudent: (milestonePrs | map(select(.mergedBy.login == $student) | {number,title,url,mergedAt})),
-    dodIssues: (milestoneIssues | map(select(.user.login == $student) |
+    dodIssues: (milestoneIssues | map(select(any(.assignees[]?; .login == $student)) |
       {number,title,url:.html_url,createdAt:.created_at,closedAt:.closed_at})),
-    dodPullRequests: (targetPrs | map({number,title,url,createdAt,closedAt})),
+    dodPullRequests: (milestonePrs | map(select(any(.assignees[]?; .login == $student)) |
+      {number,title,url,createdAt,closedAt})),
+    dodCreatedPullRequests: (targetPrs | map({number,title,url,createdAt,closedAt})),
     openPullRequests: (milestonePrs | map(select(.state == "OPEN") | {number,title,url,body,createdAt,author})),
     openIssues: (openIssues | map({number,title,url:.html_url,body,createdAt:.created_at,author:.user,assignees})),
     commits: (targetPrs | map(.commits) | add // [] | unique_by(.sha)),
@@ -277,7 +281,7 @@ jq -n \
     troubleshooting: [],
     aiUsage: ($aiUsage | with_entries(select(.key as $key | any(targetPrs[]; (.number | tostring) == $key)))), dodAssessment: $dodAssessment
   } |
-  .dodAssessment = (if ([.dodIssues[].number] | sort) == $previousIssues and ([.dodPullRequests[].number] | sort) == $previousPrs then .dodAssessment else {} end) |
+  .dodAssessment = (if ([.dodIssues[].number] | sort) == $previousIssues and ([.dodPullRequests[].number] | sort) == $previousPrs and ([.dodCreatedPullRequests[].number] | sort) == $previousCreatedPrs then .dodAssessment else {} end) |
   .summary = {
     closedPrCount: (.closedPullRequests | length),
     mergedPrCount: (.closedPullRequests | map(select(.mergedAt != null)) | length),
@@ -341,7 +345,7 @@ details summary{cursor:pointer;color:var(--text)}
 <main class="section"><div class="container">
 <section class="box summary-card"><label class="label" for="report-select">表示する記録</label><div class="select is-fullwidth"><select id="report-select">__REPORT_OPTIONS__</select></div></section>
 <section class="box summary-card" id="overview"><h2 class="title is-3">全体概要</h2><div class="overview-metrics" id="overview-metrics"></div><p>下のテキストをそのままスライドへ貼り付けられます。</p><textarea class="textarea" id="overview-text" readonly></textarea><button class="button is-info" id="copy-button" type="button">概要をコピー</button><span id="copy-status" aria-live="polite"></span><div id="ai-warning"></div><div id="ai-overview"></div><div id="dod-overview"></div><nav class="summary-links" id="overview-links" aria-label="詳細へのリンク"></nav></section>
-<section class="box summary-card" id="dod-form"><h2 class="title is-3">DoD自己評価</h2><p>「すべて」は、このMilestoneに属する自分が作成したIssue・PRを指します。各項目を選択すると表示中のJSONへ保存されます。</p><div id="dod-form-items"></div></section>
+<section class="box summary-card" id="dod-form"><h2 class="title is-3">DoD自己評価</h2><p>担当したIssue・PRは、このMilestoneで自分がAssigneeに設定されているものです。作成したPRは自分がAuthorのものです。各項目を選択すると表示中のJSONへ保存されます。</p><div id="dod-form-items"></div></section>
 <div id="details"></div>
 <div id="unfinished"></div>
 <p class="footer-note">AI利用とDoDの回答は表示中のJSONへ保存されます。ページを閉じると、約30秒後にローカルサーバは終了します。</p>
