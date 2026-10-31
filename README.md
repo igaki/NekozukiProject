@@ -5,9 +5,9 @@
 **このマニュアルに書いてあること**: 何を，どの順で，どのコマンドで実行するか．
 **このマニュアルに書いていないこと**: 用語の意味と背景．[AIエージェントと一緒に開発するための用語ガイド](./lec06withai.md) を参照してください．
 
-**入力先の見分け方**: `/init-project` などのPromptや「Skillを使ってください」という依頼は **Copilot Chat** に入力します。`bash`・`gh`・`git`・`./gradlew` で始まるコマンドは、原則としてリポジトリの **ターミナル（Git Bash）** で実行します。「AIが実行する確認コマンド」と記したものは学生が入力する必要はありません。GitHubの画面で行う操作はその都度明記します。
+**入力先の見分け方**: `/init-project` などのPromptや「Skillを使ってください」という依頼は **Copilot Chat** に入力します．`bash`・`gh`・`git`・`./gradlew` で始まるコマンドは，原則としてリポジトリの **ターミナル（Git Bash）** で実行します．「AIが実行する確認コマンド」と記したものは学生が入力する必要はありません．GitHubの画面で行う操作はその都度明記します．
 
-Copilotがコマンドやスクリプトの実行許可を求める場合は、先に表示される**実行の目的・対象・コマンド・変更や投稿の有無**を読んでから判断してください。説明がない、または意図が分からない場合は、許可する前にCopilot Chatで確認してください。
+Copilotがコマンドやスクリプトの実行許可を求める場合は，先に表示される**実行の目的・対象・コマンド・変更や投稿の有無**を読んでから判断してください．説明がない，または意図が分からない場合は，許可する前にCopilot Chatで確認してください．
 
 | 知りたいこと | 参照先(用語ガイド) |
 | --- | --- |
@@ -65,7 +65,7 @@ gh auth login
 5. Spring Initializr を使って Spring Boot プロジェクトを作成する．
   - Spring Initializr を使うと便利です．
   - 授業で作成したものと同様の設定にすること
-6. **Issueを登録する前に、GitHubリポジトリ上に使用するMilestoneを作成する。** GitHubのリポジトリ画面で **Issues → Milestones → New milestone** を開き、必要な `lec06`～`lec14` を名前どおりに登録する。草案の `milestone:` 欄へ名前を書くだけでは、GitHub上にMilestone自体は作成されない。既に同名のMilestoneがあれば再作成しない。[GitHubの操作手順](https://docs.github.com/ja/issues/using-labels-and-milestones-to-track-work/creating-and-editing-milestones-for-issues-and-pull-requests)も参照する。
+6. **Issueを登録する前に，GitHubリポジトリ上に使用するMilestoneを作成する．** GitHubのリポジトリ画面で **Issues → Milestones → New milestone** を開き，必要な `lec06`～`lec14` を名前どおりに登録する．草案の `milestone:` 欄へ名前を書くだけでは，GitHub上にMilestone自体は作成されない．既に同名のMilestoneがあれば再作成しない．[GitHubの操作手順](https://docs.github.com/ja/issues/using-labels-and-milestones-to-track-work/creating-and-editing-milestones-for-issues-and-pull-requests)も参照する．
 
 ---
 
@@ -90,7 +90,7 @@ gh auth login
 
 ### AIが実行する確認・更新コマンド
 
-次はPromptが実行するコマンドです。学生がCopilot Chatへ貼り付けるコマンドではありません。
+次はPromptが実行するコマンドです．学生がCopilot Chatへ貼り付けるコマンドではありません．
 
 **実行先: AIのターミナル（検査のみ）**
 
@@ -106,12 +106,14 @@ bash scripts/harness/init-project.sh --check
 bash scripts/harness/init-project.sh --initialize
 ```
 
-### 初期化後の確認
+## 1.1. 次へ進む前の確認とリポジトリハーネスの設定
 
 - `docs/project.md` の `PROJECT-CONFIG` に，検出された `repository_name`，`app_name`，`app_dir` が記録されている．
 - `## 開発者（GitHub名）` に，取得した最新の Collaborator のGitHub ID一覧が記録されている．
 - `app_dir` のフォルダで `./gradlew test` が成功している．
 - 以降の `/brainstorm`，`/plan-issues`，Skill，CI は `app_dir` をアプリフォルダとして利用する．
+
+### リポジトリハーネス
 
 ---
 
@@ -196,7 +198,7 @@ AI は `docs/project.md` に基づき，開発対象について「すでに分�
 
 AI はまず内容を要約し，問題がなければ分割案を表で示します(この時点では `docs/temp/issues.md` は作られません)．id・題名・利用者価値・今回しないこと・依存・分割理由を確認します．合意後は，次のように入力して草案作成を依頼します．
 
-画面を使うACでは、**Given** に「誰がどの状態でどの画面を開いているか」、**When** に「誰がどのボタン・リンクなどを操作するか」、**Then** に「どの画面・場所に何が表示されるか」を書きます。対応するHTMLテンプレートが決まっていれば、その名前も記します。「ログイン済みプレイヤー」「ゲームを開始する」「クリックする」のように対象や方法が省略されていないか確認してください。「ルーム識別子」など固有の語は同じIssueの「機能の概要」で説明します。画面・操作・権限がまだ決まっていない場合、AIは推測して埋めず、チームに質問します。
+画面を使うACでは，**Given** に「誰がどの状態でどの画面を開いているか」，**When** に「誰がどのボタン・リンクなどを操作するか」，**Then** に「どの画面・場所に何が表示されるか」を書きます．対応するHTMLテンプレートが決まっていれば，その名前も記します．「ログイン済みプレイヤー」「ゲームを開始する」「クリックする」のように対象や方法が省略されていないか確認してください．「ルーム識別子」など固有の語は同じIssueの「機能の概要」で説明します．画面・操作・権限がまだ決まっていない場合，AIは推測して埋めず，チームに質問します．
 
 ### 草案作成の入力例
 
@@ -206,8 +208,8 @@ AI はまず内容を要約し，問題がなければ分割案を表で示し�
 この分け方で進めます．Issue の下書きを作ってください．
 ```
 
-AI は草案を作成した後、登録スクリプトで形式エラーにならないよう、Issue ブロック数・各 Issue の AC 見出し数・実装計画見出し数などを確認し、その結果と未決定事項を報告します。
-この確認は内容の正しさを保証するものではありません。`docs/temp/issues.md` を開き、各 Issue の AC、依存関係、変更範囲、実装計画に問題がないかをチームで確認しましょう。確認後、各 Issue の `assignee:` に担当する学生の GitHub ユーザー名、`milestone:` に `lec06`～`lec14` の既存Milestoneを学生自身が直接記入します。どちらかが未記入なら登録スクリプトは Issue を登録せず停止します。
+AI は草案を作成した後，登録スクリプトで形式エラーにならないよう，Issue ブロック数・各 Issue の AC 見出し数・実装計画見出し数などを確認し，その結果と未決定事項を報告します．
+この確認は内容の正しさを保証するものではありません．`docs/temp/issues.md` を開き，各 Issue の AC，依存関係，変更範囲，実装計画に問題がないかをチームで確認しましょう．確認後，各 Issue の `assignee:` に担当する学生の GitHub ユーザー名，`milestone:` に `lec06`～`lec14` の既存Milestoneを学生自身が直接記入します．どちらかが未記入なら登録スクリプトは Issue を登録せず停止します．
 
 ### 草案を修正する入力例
 
@@ -234,14 +236,14 @@ docs/temp/issues.md の Issue game-room-join の AC 2 を，
 
 ## 4. 計画b: Issue を登録する(スクリプト:register-from-file.sh)
 
-チームで確認し，担当者とMilestoneを記入した Issue 草案を GitHub Issue として登録します．**登録前に、指定するMilestone自体がGitHubリポジトリに作成済みであることを確認してください。** `milestone: lec06` と草案に書いただけではMilestone自体は作成されません。未作成なら[準備の手順](#0-準備)でGitHubに登録してから進みます。
+チームで確認し，担当者とMilestoneを記入した Issue 草案を GitHub Issue として登録します．**IssueにMilestoneを設定する前に，指定するMilestone自体をGitHubリポジトリ上で作成してください．** `milestone: lec06` と草案に書いただけではMilestone自体は作成されません．未作成なら[準備の手順](#0-準備)でGitHubに登録してから進みます．
 
 ### 実施の流れ
 
 1. `docs/temp/issues.md` の内容をチームで確認する．
-2. 各 Issue の `assignee:` に担当する学生の GitHub ユーザー名、`milestone:` にGitHubで作成済みの `lec06`～`lec14` を記入する．
+2. 各 Issue の `assignee:` に担当する学生の GitHub ユーザー名，`milestone:` にGitHubで作成済みの `lec06`～`lec14` を記入する．
 3. 登録スクリプトをターミナルで実行する．スクリプトは指定したMilestoneを各IssueのGitHub上の設定に割り当てる．
-4. 作成されたIssueをGitHubで開き、右側のMilestone欄に指定値が設定されていることを確認する．エラーが出た場合は、指摘された箇所だけを修正して再実行する．
+4. 作成されたIssueをGitHubで開き，右側のMilestone欄に指定値が設定されていることを確認する．エラーが出た場合は，指摘された箇所だけを修正して再実行する．
 
 ### 実行コマンド
 
@@ -251,13 +253,13 @@ docs/temp/issues.md の Issue game-room-join の AC 2 を，
 bash scripts/issue/register-from-file.sh docs/temp/issues.md
 ```
 
-スクリプトは質問をせず，草案を検査して問題がなければ登録します．**GitHubのIssue Formから直接登録するときは、フォームのMilestone選択とは別に、作成後にGitHubのIssue画面右側にあるMilestone欄へ同じ値を設定してください。** フォームの回答欄だけではGitHub上のMilestoneは設定されません。作成・編集・Milestone設定／解除時にGitHub Actionsが実際の設定値を検査し、未設定またはlec06～lec14以外なら失敗を表示します。Issue Formからの作成自体は停止できないため、失敗を確認したらGitHubのMilestone欄を修正してください。
+スクリプトは質問をせず，草案を検査して問題がなければ登録します．**GitHubのIssue Formから直接登録するときは，フォームのMilestone選択とは別に，作成後にGitHubのIssue画面右側にあるMilestone欄へ同じ値を設定してください．** フォームの回答欄だけではGitHub上のMilestoneは設定されません．作成・編集・Milestone設定／解除時にGitHub Actionsが実際の設定値を検査し，未設定またはlec06～lec14以外なら失敗を表示します．Issue Formからの作成自体は停止できないため，失敗を確認したらGitHubのMilestone欄を修正してください．
 
 ### スクリプトが確認すること
 
 - 必須の「機能の概要」「AC」があるか
 - 担当者が決まっているか
-- Milestoneが記入され、GitHub上に存在するか
+- Milestoneが記入され，GitHub上に存在するか
 - 同じタイトルの Issue をすでに登録していないか
 - 依存先が実在する open Issue か
 
@@ -359,7 +361,7 @@ Issue の AC を満たすことを，自動テストと必要に応じたブラ�
 
 #### 実行コマンド
 
-**入力先: ターミナル（Git Bash）。`./gradlew` は `app_dir` へ移動してから実行します。**
+**入力先: ターミナル（Git Bash）．`./gradlew` は `app_dir` へ移動してから実行します．**
 
 ```bash
 git diff
@@ -400,7 +402,7 @@ Copilot Chat の入力欄で，`/prepare-pr` を選んでから次のように�
 
 ### 5-5. Pull Request を登録する(スクリプト:create-pr.sh)
 
-確認済みの PR 本文，下書き，コミット済みブランチから GitHub Pull Request を作成します．
+確認済みの PR 本文，下書き，コミット済みブランチから GitHub Pull Request を作成します．**PRにMilestoneを設定する場合も，そのMilestoneが先にGitHubリポジトリ上で作成されている必要があります．** IssueとPRは同じリポジトリのMilestoneを使います．未作成なら[準備の手順](#0-準備)で作成してから進んでください．
 
 #### 実施の流れ
 
@@ -418,9 +420,9 @@ cd "$(git rev-parse --show-toplevel)"
 bash scripts/pr/create-pr.sh lec06
 ```
 
-GitHub APIの一時的なエラーでPR作成後のMilestone設定だけが失敗した場合、スクリプトは作成済みPRを確認し、Milestoneの設定を再試行します。同じブランチのOpen PRが既にあれば、新しいPRを作らずMilestoneを確認・修復します。修復できない場合はPR番号と確認方法を表示するので、GitHub上でMilestoneを確認してください。作成済みか不明なときも、GitHub上で同じブランチのPRを確認してから再実行してください。
+GitHub APIの一時的なエラーでPR作成後のMilestone設定だけが失敗した場合，スクリプトは作成済みPRを確認し，Milestoneの設定を再試行します．同じブランチのOpen PRが既にあれば，新しいPRを作らずMilestoneを確認・修復します．修復できない場合はPR番号と確認方法を表示するので，GitHub上でMilestoneを確認してください．作成済みか不明なときも，GitHub上で同じブランチのPRを確認してから再実行してください．
 
-引数に関連Issueと同じMilestoneを必ず指定します．空欄、GitHub上に存在しない値、Issue側と一致しない値なら、push・PR作成前に停止します．本文・ブランチ・Issue を検査して問題がなければ push と PR 作成を行います．
+引数に関連Issueと同じMilestoneを必ず指定します．空欄，GitHub上に存在しない値，Issue側と一致しない値なら，push・PR作成前に停止します．本文・ブランチ・Issue を検査して問題がなければ push と PR 作成を行います．
 
 #### 登録後の確認
 
@@ -468,7 +470,7 @@ gh pr checks 12
 
 気付いた点は**根拠とともに**書きます．
 
-**入力先: GitHubのPRコメント欄。AIに下書きを依頼する場合はCopilot Chat。**
+**入力先: GitHubのPRコメント欄．AIに下書きを依頼する場合はCopilot Chat．**
 
 ```text
 AC 2 の「満室なら参加できない」について，PR 本文から確認方法と結果を読み取れません．
@@ -542,29 +544,41 @@ Skill は「期待結果／実際の結果／再現手順／原因候補／候�
 
 1. 集計スクリプトを実行する．
 2. ブラウザで生成された振り返りを確認する．
-3. Close済みPRごとのAI利用と，共通DoDの7項目について自己評価を入力する．必要に応じて別のMilestoneの JSON を選ぶ．
+3. Close済み担当PRごとのAI利用と，週次振り返り用DoDの6項目について自己評価を入力する．必要に応じて別のMilestoneの JSON を選ぶ．
 
 ### 実行コマンド
 
 **入力先: ターミナル（Git Bash）**
 
 ```bash
-# ログイン中の学生について、lec06に属するIssue・PRを集計する
+# ログイン中の学生について，lec06に属するIssue・PRを集計する
 bash scripts/report/weekly-summary.sh --milestone lec06
 
 # 対象学生を指定する
 bash scripts/report/weekly-summary.sh --milestone lec07 --student fukuyasu
 ```
 
-`--milestone` は必須で、`lec06`～`lec14` のGitHub上に存在するMilestoneを指定します．存在しない場合は作成方法を案内して停止します．全Issue・PRの中にMilestone未割当があれば番号を警告し、割当後に同じコマンドを再実行するよう案内して停止します．PR・Issue・コミットの取得に失敗した場合も集計を停止します．これらの停止時は既存のJSON・HTMLを差し替えず、バックアップも作りません．
+`--milestone` は必須で，`lec06`～`lec14` のGitHub上に存在するMilestoneを指定します．
+
+### 警告・エラーが出た場合
+
+- **引数で指定したMilestoneがGitHub上にない場合**: 作成方法を案内して集計を停止します．GitHubの **Issues → Milestones → New milestone** で作成してから，同じコマンドを再実行してください．
+- **Milestone未割当のIssue・PRがある場合**: 指定したMilestone以外のものも含め，番号とURLを警告します．集計は続きますが，GitHub上で該当Issue・PRにMilestoneを設定し，同じコマンドを再実行してください．
+- **複数のassigneeが設定されたIssue・PRがある場合**: 対象とassigneeを表示して集計を停止します．GitHub上で内容を一番よく理解している主担当だけを残し，同じコマンドを再実行してください．この場合，既存のJSON・HTMLは差し替えず，バックアップも作りません．
+
+PR・Issue・コミットの取得に失敗した場合も集計を停止し，既存のJSON・HTMLを差し替えず，バックアップも作りません．
 
 ### 出力物と確認
 
-対象学生ごとに `docs/weekly-summary_<GitHubユーザー名>.html` と `docs/weekly-summary-data/<ユーザー名>/lecXX.json` ができ，ブラウザで開きます．同じMilestoneを再集計すると、既存JSONを `lecXX.backup-YYYY-MM-DD_HHMMSS.json.bak` に保存してから新しいJSONに差し替えます．**HTML は閲覧用，JSON が進捗の正本**です．個人のローカル記録で Git 管理しません．
+対象学生ごとに `docs/weekly-summary_<GitHubユーザー名>.html` と `docs/weekly-summary-data/<ユーザー名>/lecXX.json` ができ，ブラウザで開きます．同じMilestoneを再集計すると，既存JSONを `lecXX.backup-YYYY-MM-DD_HHMMSS.json.bak` に保存してから新しいJSONに差し替えます．**HTML は閲覧用，JSON が進捗の正本**です．個人のローカル記録で Git 管理しません．
 
-`--student` を省略すると現在ログイン中のGitHubユーザーを対象にします．日時による絞り込みは行いません．前回入力したAI利用は同じPRについて引き継ぎ、DoD自己評価は対象Issue・PRの集合が変わらない場合に引き継ぎます．
+`--student` を省略すると現在ログイン中のGitHubユーザーを対象にします．日時による絞り込みは行いません．担当PRは，assigneeが設定されていれば自分がassigneeであるPR，未設定なら自分が作成したPRです．前回入力したAI利用は同じClose済み担当PRについて引き継ぎ，DoD自己評価は対象Issue・PRの集合が変わらない場合に引き継ぎます．以前の形式のJSONから回答は引き継ぎません．
 
-ページ上部の「表示する記録」でMilestone別の JSON を切り替えられます．全体概要はコピーしてスライドへ貼り付けられます．DoD自己評価とClose済みPRごとのAI利用は，選択内容が表示中の JSON に保存されます．未完了エリアには指定Milestoneの全Open PR・Issueを表示します．コミットは対象PRのもの、コメントは対象Issue・PRに付いたものを集計します．Milestoneに紐付かないローカルのtrouble reportは集計対象外です．ページを閉じるとローカルサーバは約 30 秒後に終了します．
+ページ上部の「表示する記録」でMilestone別の JSON を切り替えられます．全体概要の「概要をコピー」は，Googleスプレッドシートに貼り付けられるタブ区切りテキストをコピーします．学生ごとに1つのスプレッドシートを用意し，lec06から順に最終行の下へ貼り付けてください．各Milestoneの先頭に9つの数値集計行，次にPR・Issueの明細，最後に独立したDoD自己評価6行が入ります．行種別「集計」とMilestoneで絞り込めるため，明細の行数が変わっても件数を分析できます．同じMilestoneを再集計して貼り直す場合は，古いMilestoneの行を削除してから貼り付けてください．全体概要ではOpen PR・Open Issueの件数をtrouble reportの後に表示します．Close済み担当PRの下には関連Issueと現在のOpen／Closedを表示します．DoD自己評価とClose済み担当PRごとのAI利用は，選択内容が表示中の JSON に保存されます．未完了エリアにはMilestoneや担当者を問わず全Open PR・Issueを表示します．コミットは自分が作成した対象MilestoneのPRのもの，コメントは対象Issue・PRに付いたものを集計します．Milestoneに紐付かないローカルのtrouble reportは集計対象外です．ページを閉じるとローカルサーバは約 30 秒後に終了します．
+
+詳細表示はClose済み担当PR，自分がマージしたPR，手動でCloseされたIssue，コミット，GitHubコメント，trouble reportの順です．PR・Issueには主担当，作成者，作成日時など，コピーする明細と同じ項目を表示し，関連Issueにも作成者や日時を表示します．ページ末尾の未完了エリアでは，全Open PR・Issueの担当者，作成者，作成日時，関連Issue・PRを確認できます．
+
+Issue・PRのGitHubリンクにマウスを重ねると，本文やコメント・レビューをローカルのオーバーレイで確認できます．同じリンクの内容はサーバ稼働中に再利用し，サーバ終了時にメモリから全件破棄します．リンクをクリックするとGitHubの元ページを開けます．DoD自己評価の対象リンクは `Issue#5`，`PR#8` のように種類を表示します．
 
 ### 過去の記録を開くコマンド
 
@@ -615,10 +629,10 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/fukuyasu/lec
 | ブランチ作成 | 実施の流れ／実行コマンド／次の工程 | `bash scripts/issue/ready.sh` | ターミナル（Git Bash） |
 | 実装計画 | 実施の流れ／入力例／承認後の作業 | `implement-issue Skill を使って…` | Copilot Chat |
 | テストと動作確認 | 実施の流れ／実行コマンド／確認できた状態 | `app_dir` のフォルダで `./gradlew test`，`./gradlew bootRun` | ターミナル（Git Bash） |
-| PR 本文作成 | 実施の流れ／入力例／次の工程 | `/prepare-pr このブランチの PR 本文を作成したいです。` | Copilot Chat |
+| PR 本文作成 | 実施の流れ／入力例／次の工程 | `/prepare-pr このブランチの PR 本文を作成したいです．` | Copilot Chat |
 | PR 登録 | 実施の流れ／実行コマンド／登録後の確認 | `bash scripts/pr/create-pr.sh lec06` | ターミナル（Git Bash） |
 | レビュー | 実施の流れ／入力例／マージ前の確認 | `/review-pr` | Copilot Chat |
-| デバッグ | 実施の流れ／入力例／終了前の確認 | `debug Skill を使ってください。` | Copilot Chat |
+| デバッグ | 実施の流れ／入力例／終了前の確認 | `debug Skill を使ってください．` | Copilot Chat |
 | 週次振り返り | 実施の流れ／実行コマンド／出力物 | `bash scripts/report/weekly-summary.sh --milestone lec06` | ターミナル（Git Bash） |
 | テンプレート設定の更新 | 実施の流れ／実行コマンド／更新後の確認 | `bash scripts/harness/generate-template-harness.sh` | ターミナル（Git Bash） |
 
@@ -648,7 +662,7 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/fukuyasu/lec
 | Issue 草案の構造表示 | `.github/prompts/plan-issues.prompt.md` に埋め込まれた PortableGit の `grep` コマンド | `docs/temp/issues.md` の Issue ブロック数，AC 見出し数，実装計画見出し数を数える．開始条件に関する記載箇所と行末空白を表示する．この処理は独立したスクリプトではない． |
 | Issue 本文の形式検査 | `scripts/lib/markdown-format.sh` を `scripts/issue/register-from-file.sh` が読み込む | 必須見出しが各1回あること，必須本文が空でないこと，草案 ID・題名が重複しないことを検査する． |
 | Issue 登録 | `scripts/issue/register-from-file.sh` | 担当者と既存Milestoneの記入，依存先 Issue の存在と Open 状態を検査する．成功時は Milestone付きで Issue を作成し，依存関係を設定する． |
-| GitHub上のIssue Milestone検査 | `.github/workflows/validate-issue-milestone.yml`、`scripts/issue/validate-milestone.sh` | Issue作成後などにGitHub上のMilestoneを取得し、lec06～lec14以外ならActionを失敗させる．Issue Formの本文選択だけでは合格しない． |
+| GitHub上のIssue Milestone検査 | `.github/workflows/validate-issue-milestone.yml`，`scripts/issue/validate-milestone.sh` | Issue作成後などにGitHub上のMilestoneを取得し，lec06～lec14以外ならActionを失敗させる．Issue Formの本文選択だけでは合格しない． |
 | 着手可能 Issue とブランチ作成 | `scripts/issue/ready.sh` | `git diff` と `git diff --cached` で追跡済みの変更を検査する．`gh issue view` で Issue の Open 状態，Open な依存 Issue，担当者を確認する．成功時は `git fetch origin main` と `git switch -c <branch> origin/main` を実行する． |
 | PR 本文の形式・関連 Issue 検査 | `scripts/pr/validate-body.sh` | PR 本文の必須見出し・必須本文を検査する．`--check-related-issues` 使用時は，関連 Issue の存在，Issue であること，`Closes` の対象が Open であることを GitHub API で検査する． |
 | PR 登録 | `scripts/pr/create-pr.sh` | ブランチ名，追跡済みの未コミット変更，PR 本文ファイル，関連 Issue，既存Milestoneとの一致を検査する．成功時は `git push` と Milestone付きの `gh pr create` を実行する． |
@@ -656,21 +670,44 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/fukuyasu/lec
 | 初期化 | `scripts/harness/init-project.sh` | SSH remote，GitHub CLI 認証，Collaborator 一覧，Spring Bootアプリの自動検出，Gradleテストを検査し，`repository_name`・`app_name`・`app_dir` と開発者一覧を更新する．Collaborator が0人なら停止する． |
 | 自動テスト | `.github/workflows/ci.yml` | Pull Request 作成時と `main` への push 時に，`docs/project.md` の `app_dir` を読み，そのフォルダで `./gradlew test` を実行する． |
 | テンプレート同期 | `scripts/harness/generate-template-harness.sh` | `docs/template-constraints.md` の `HARNESS-CONFIG` から，Issue Form，PR テンプレート，PR 本文検査 Action，`scripts/lib/markdown-format.sh` を生成する． |
-| 週次振り返りの集計 | `scripts/report/weekly-summary.sh`，`scripts/report/weekly-summary-ui.js`，`scripts/report/server-weekly-summary.ps1` | 既存Milestoneを指定し、未割当Issue・PRがないか確認してから対象を集計する．Milestone別JSONをバックアップして差し替え、HTMLを生成する．DoD自己評価とPRごとのAI利用をJSONへ保存する． |
+| 週次振り返りの集計 | `scripts/report/weekly-summary.sh`，`scripts/report/weekly-summary-ui.js`，`scripts/report/server-weekly-summary.ps1` | 既存Milestoneを指定し，未割当Issue・PRを警告しながら集計する．複数assigneeのIssue・PRがあれば停止する．Milestone別JSONをバックアップして差し替え，閲覧用HTMLとスプレッドシート貼り付け用のタブ区切り概要を生成する．DoD自己評価とClose済み担当PRごとのAI利用をJSONへ保存する． |
 
 ### GitHub リポジトリ設定による main ブランチ保護
 
 分類: 決定的ハーネス（GitHub リポジトリ設定）
 
-GitHub のリポジトリ設定で，default branch の `main` を対象とする Ruleset または Branch protection rule を有効にします．この設定はリポジトリ内のファイルではなく，GitHub のリポジトリ設定で管理します．
-
 - Pull Request を必須にする．
 - `CI` と `Validate pull request body` を必須 status check にする．
-- 必要なレビュー承認数を設定する．
+  - 本来は必須のほうが望ましいですが，授業では必須とはしません．
+  - `ci.yml` と `validate-pr-body.yml` は検査ジョブを実行します．これらを main へのマージ条件にするには，GitHub リポジトリ設定で必須 status check として指定する必要があります．
 - 学生を bypass list に追加しない．
 - force push を許可しない．
+- ブランチ削除を許可しない．
 
-`ci.yml` と `validate-pr-body.yml` は検査ジョブを実行します．これらを main へのマージ条件にするには，GitHub リポジトリ設定で必須 status check として指定します．
+以上のハーネスを利用するため，GitHub のリポジトリ設定で，default branch の `main` を対象とする Ruleset または Branch protection rule を有効にします．この設定はリポジトリ内のファイルではなく，GitHub のリポジトリ設定で管理します．
+
+#### GitHub Rulesets の設定手順
+GitHubの Rulesets（ルールセット） を使って，ブランチへの直接プッシュを禁止し，Pull Request（PR）の作成を必須にする設定手順は以下の通りです． [1] (https://zenn.dev/kimmaru/articles/5dc58050d8e6ad), [2] (https://zenn.dev/justhiro/articles/ced22b2ee42a4d)
+
+- 設定手順
+
+1. 対象のリポジトリを開き，上部のメニューから [Settings] をクリックします(リポジトリ作成者のみ実施可能)． [1] (https://laboratory.kiyono-co.jp/3626/uncategorized/), [2] (https://zenn.dev/kimmaru/articles/5dc58050d8e6ad)
+2. 左側のサイドバーにある [Rules] ＞ [Rulesets] を選択します． [1] (https://laboratory.kiyono-co.jp/3626/uncategorized/)
+3. 右上の [New ruleset] ＞ [New branch ruleset] をクリックします． [1] (https://zenn.dev/kimmaru/articles/5dc58050d8e6ad), [2] (https://laboratory.kiyono-co.jp/3626/uncategorized/)
+4. General（全般） の項目を設定します：
+	• Rule name: ルール名を入力する（例: main-protection など）．
+	• Enforcement status: [Active] を選択する． [1] (https://laboratory.kiyono-co.jp/3626/uncategorized/), [2] (https://zenn.dev/kimmaru/articles/5dc58050d8e6ad)
+5. Target branches（対象ブランチ） を設定します：
+	• Add target をクリックし，Include default branch を指定します． [1] (https://nealle-dev.hatenablog.com/entry/2026/07/28/114424), [2] (https://zenn.dev/kimmaru/articles/5dc58050d8e6ad)
+6. Rules（適用するルール） の一覧からチェックを入れます：
+	• [Require a pull request before merging] にチェックを入れる（必須）．
+	• 以下もチェックを入れましょう：
+		• [Block force pushes]（強制プッシュの禁止）
+		• [Restrict deletions]（ブランチ削除の禁止） [1] (https://docs.github.com/ja/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets), [2] (https://zenn.dev/kimmaru/articles/5dc58050d8e6ad), [3] (https://zenn.dev/justhiro/articles/ced22b2ee42a4d), [4] (https://laboratory.kiyono-co.jp/3626/uncategorized/)
+7. 画面一番下の [Create] をクリックして保存します．
+
+• GitHubドキュメント（ルールセットで使用できるルール） で詳細なルール一覧を確認できます． [1] (https://docs.github.com/ja/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets), [2] (https://qiita.com/wakinoza/items/3f49609526a612bfbfb7), [3] (https://zenn.dev/kimmaru/articles/5dc58050d8e6ad)
+
 
 ### 推論的ハーネス
 

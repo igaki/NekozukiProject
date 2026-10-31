@@ -27,7 +27,7 @@ fi
   exit 1
 }
 
-for command_name in gh jq git date; do
+for command_name in gh jq git date cygpath; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "エラー: ${command_name} が見つかりません。PortableGit BashとGitHub CLIを利用できる環境で実行してください。" >&2
     exit 1
@@ -93,9 +93,22 @@ choose_start() {
 
 echo 'PR一覧を取得しています…' >&2
 gh pr list --repo "$REPOSITORY" --state all --limit 10000 \
-  --json number,state,title,url,body,createdAt,closedAt,mergedAt,mergedBy,headRefName,author,milestone > "$TEMP_DIR/all-pulls.json"
+  --json number,state,title,url,body,createdAt,closedAt,mergedAt,mergedBy,headRefName,author,assignees,milestone > "$TEMP_DIR/all-pulls.json"
 gh api --paginate --slurp "repos/${REPOSITORY}/issues?state=all&per_page=100" |
   jq 'add // [] | map(select(.pull_request == null))' > "$TEMP_DIR/all-issues.json"
+
+multiple_prs="$(jq -r '.[] | select(([.assignees[]?.login] | unique | length) > 1) |
+  "PR #\(.number) \(.url) — assignees: \([.assignees[]?.login] | unique | join(", "))"' "$TEMP_DIR/all-pulls.json")"
+multiple_issues="$(jq -r '.[] | select(([.assignees[]?.login] | unique | length) > 1) |
+  "Issue #\(.number) \(.html_url) — assignees: \([.assignees[]?.login] | unique | join(", "))"' "$TEMP_DIR/all-issues.json")"
+if [[ -n "$multiple_prs" || -n "$multiple_issues" ]]; then
+  echo 'エラー: 複数のassigneeが設定されたIssue・PRがあります。' >&2
+  [[ -z "$multiple_issues" ]] || printf '%s\n' "$multiple_issues" >&2
+  [[ -z "$multiple_prs" ]] || printf '%s\n' "$multiple_prs" >&2
+  echo 'GitHub上で内容を一番よく理解している主担当のみをassigneeに残してください。' >&2
+  echo "修正後に bash scripts/report/weekly-summary.sh --milestone ${MILESTONE} --student ${STUDENT} を再実行してください。既存のレポートは変更していません。" >&2
+  exit 1
+fi
 
 missing_prs="$(jq -r '.[] | select(.milestone == null) | "PR #\(.number) \(.url)"' "$TEMP_DIR/all-pulls.json")"
 missing_issues="$(jq -r '.[] | select(.milestone == null) | "Issue #\(.number) \(.html_url)"' "$TEMP_DIR/all-issues.json")"
@@ -104,7 +117,6 @@ if [[ -n "$missing_prs" || -n "$missing_issues" ]]; then
   [[ -z "$missing_issues" ]] || printf '%s\n' "$missing_issues" >&2
   [[ -z "$missing_prs" ]] || printf '%s\n' "$missing_prs" >&2
   echo "GitHubでMilestoneを設定し、bash scripts/report/weekly-summary.sh --milestone ${MILESTONE} --student ${STUDENT} を再実行してください。" >&2
-  exit 1
 fi
 
 echo '対象学生のPR詳細を取得しています…' >&2
@@ -120,11 +132,12 @@ while IFS= read -r number; do
     echo "エラー: PR #${number} のコミットを取得できません。既存のレポートは変更せず終了します。" >&2
     exit 1
   fi
-  jq -n --argjson detail "$detail" --arg body "$body" --argjson commits "$commits" \
-    '$detail + {body: $body, commits: $commits}' >> "$TEMP_DIR/target-prs.jsonl"
+  jq -n --argjson detail "$detail" --argjson rest "$rest" --arg body "$body" --argjson commits "$commits" \
+    '$detail + {body: $body, commits: $commits, author: $rest.author, assignees: ($rest.assignees // [])}' >> "$TEMP_DIR/target-prs.jsonl"
 done < <(jq -r --arg student "$STUDENT" --arg milestone "$MILESTONE" '
-  .[] | select(.author.login == $student) |
-  select(.milestone.title == $milestone) | .number
+  .[] | select(.milestone.title == $milestone) |
+  select(.author.login == $student or
+    (if (.assignees // [] | length) > 0 then any(.assignees[]; .login == $student) else false end)) | .number
 ' "$TEMP_DIR/all-pulls.json" | tr -d '\r')
 jq -s '.' "$TEMP_DIR/target-prs.jsonl" > "$TEMP_DIR/target-prs.json"
 
@@ -153,6 +166,9 @@ echo 'Issueごとの所要時間を算定しています…' >&2
 : > "$TEMP_DIR/closed-prs-without-issue.jsonl"
 while IFS= read -r pr_number; do
   pr="$(jq --argjson number "$pr_number" '.[] | select(.number == $number)' "$TEMP_DIR/target-prs.json")"
+  if ! jq -e --arg student "$STUDENT" 'if (.assignees | length) > 0 then any(.assignees[]; .login == $student) else .author.login == $student end' <<<"$pr" >/dev/null; then
+    continue
+  fi
   closed_at="$(jq -r '.closedAt // empty' <<<"$pr")"
   [[ -n "$closed_at" ]] || continue
   branch="$(jq -r '.headRefName // empty' <<<"$pr")"
@@ -175,6 +191,7 @@ while IFS= read -r pr_number; do
   jq -n --argjson pr "$pr" --argjson closingIssueNumbers "$closed_issue_numbers" --arg start "$pr_start" --arg source "$pr_start_source" --arg end "$pr_end" --arg seconds "$pr_seconds" '
     {number:$pr.number,title:$pr.title,url:$pr.url,body:$pr.body,createdAt:$pr.createdAt,
      closedAt:$pr.closedAt,mergedAt:$pr.mergedAt,mergedBy:$pr.mergedBy,
+     author:$pr.author.login,assignees:[$pr.assignees[]?.login],
      closingIssueNumbers:$closingIssueNumbers,startAt:$start,startSource:$source,
      endAt:$end,endSource:(if $pr.mergedAt != null then "pr-merged" else "pr-closed" end),
      durationSeconds:($seconds|tonumber?)}
@@ -218,7 +235,9 @@ while IFS= read -r issue_number; do
   start="$(jq -r '.created_at' <<<"$issue")"; end="$(jq -r '.closed_at' <<<"$issue")"
   seconds="$(duration_seconds "$start" "$end" || printf '')"
   jq -n --argjson issue "$issue" --arg start "$start" --arg end "$end" --arg seconds "$seconds" '
-    {number:$issue.number,title:$issue.title,url:$issue.html_url,body:($issue.body // ""),startAt:$start,endAt:$end,startSource:"issue-created",endSource:"issue-closed",durationSeconds:($seconds|tonumber?)}
+    {number:$issue.number,title:$issue.title,url:$issue.html_url,body:($issue.body // ""),
+     author:$issue.user.login,assignees:[$issue.assignees[]?.login],createdAt:$start,closedAt:$end,
+     startAt:$start,endAt:$end,startSource:"issue-created",endSource:"issue-closed",durationSeconds:($seconds|tonumber?)}
   ' >> "$TEMP_DIR/manually-closed-issues.jsonl"
 done < <(jq -r --arg student "$STUDENT" --arg milestone "$MILESTONE" '
   .[] | select(.closed_at != null and .milestone.title == $milestone) |
@@ -232,15 +251,17 @@ previous_ai='{}'
 previous_dod='{}'
 previous_issue_numbers='[]'
 previous_pr_numbers='[]'
+previous_created_pr_numbers='[]'
 if [[ -f "$DATA_FILE" ]]; then
-  previous_ai="$(jq -c 'if .schemaVersion == 3 then .aiUsage // {} else {} end' "$DATA_FILE")"
-  previous_dod="$(jq -c 'if .schemaVersion == 3 then .dodAssessment // {} else {} end' "$DATA_FILE")"
+  previous_ai="$(jq -c 'if .schemaVersion == 4 then .aiUsage // {} else {} end' "$DATA_FILE")"
+  previous_dod="$(jq -c 'if .schemaVersion == 4 then .dodAssessment // {} else {} end' "$DATA_FILE")"
   previous_issue_numbers="$(jq -c '[.dodIssues[]?.number] | sort' "$DATA_FILE")"
   previous_pr_numbers="$(jq -c '[.dodPullRequests[]?.number] | sort' "$DATA_FILE")"
+  previous_created_pr_numbers="$(jq -c '[.dodCreatedPullRequests[]?.number] | sort' "$DATA_FILE")"
 fi
 
 jq -n \
-  --arg generatedAt "$NOW" --arg student "$STUDENT" --arg milestone "$MILESTONE" \
+  --arg generatedAt "$NOW" --arg student "$STUDENT" --arg milestone "$MILESTONE" --arg repository "$REPOSITORY" \
   --slurpfile completed "$TEMP_DIR/completed-issues.json" \
   --slurpfile closedPrs "$TEMP_DIR/closed-prs.json" \
   --slurpfile withoutIssue "$TEMP_DIR/closed-prs-without-issue.json" \
@@ -251,33 +272,50 @@ jq -n \
   --slurpfile issueComments "$TEMP_DIR/issue-comments.json" \
   --slurpfile reviewComments "$TEMP_DIR/review-comments.json" \
   --argjson aiUsage "$previous_ai" --argjson dodAssessment "$previous_dod" \
-  --argjson previousIssues "$previous_issue_numbers" --argjson previousPrs "$previous_pr_numbers" '
+  --argjson previousIssues "$previous_issue_numbers" --argjson previousPrs "$previous_pr_numbers" --argjson previousCreatedPrs "$previous_created_pr_numbers" '
   def completed: $completed[0] | unique_by(.number); def closedPrs: $closedPrs[0];
   def withoutIssue: $withoutIssue[0]; def manual: $manual[0];
   def targetPrs: $targetPrs[0]; def allPrs: $allPrs[0]; def allIssues: $allIssues[0];
   def issueComments: $issueComments[0]; def reviewComments: $reviewComments[0];
   def milestonePrs: allPrs | map(select(.milestone.title == $milestone));
   def milestoneIssues: allIssues | map(select(.milestone.title == $milestone));
-  def openIssues: milestoneIssues | map(select(.state == "open"));
+  def responsible: if (.assignees // [] | length) > 0 then any(.assignees[]; .login == $student) else .author.login == $student end;
+  def referencedNumbers($pr):
+    ([ $pr.closingIssueNumbers[]?,
+       ($pr.body // "" | match("(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?|references?)\\s+(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[0-9]+(?:\\s*(?:,|;|and|&)\\s*(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[0-9]+)*"; "g") |
+         .string | scan("(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[0-9]+") |
+         select(startswith("#") or startswith($repository + "#")) | split("#")[1] | tonumber) ] | unique);
+  def relatedIssues($pr): [referencedNumbers($pr)[] as $number |
+    allIssues[] | select(.number == $number) |
+    {number,title,url:.html_url,state,author:.user.login,assignees:[.assignees[]?.login],
+     createdAt:.created_at,closedAt:.closed_at,milestone:(.milestone.title // null)}];
   {
-    schemaVersion: 3, generatedAt: $generatedAt, milestone: $milestone, student: $student,
-    closedPullRequests: closedPrs, completedIssues: completed, closedPrsWithoutIssue: withoutIssue, manuallyClosedIssues: manual,
+    schemaVersion: 4, repository: $repository, generatedAt: $generatedAt, milestone: $milestone, student: $student,
+    closedPullRequests: (closedPrs | map(. as $pr | . + {relatedIssues: relatedIssues($pr)})),
+    completedIssues: completed, closedPrsWithoutIssue: withoutIssue, manuallyClosedIssues: manual,
     pullRequests: targetPrs,
-    mergedByStudent: (milestonePrs | map(select(.mergedBy.login == $student) | {number,title,url,mergedAt})),
-    dodIssues: (milestoneIssues | map(select(.user.login == $student) |
+    mergedByStudent: (milestonePrs | map(select(.mergedBy.login == $student) |
+      . as $pr | {number,title,url,createdAt,closedAt,mergedAt,mergedBy:.mergedBy.login,
+        assignees:[.assignees[]?.login],author:.author.login,relatedIssues:relatedIssues($pr)})),
+    dodIssues: (milestoneIssues | map(select(any(.assignees[]?; .login == $student)) |
       {number,title,url:.html_url,createdAt:.created_at,closedAt:.closed_at})),
-    dodPullRequests: (targetPrs | map({number,title,url,createdAt,closedAt})),
-    openPullRequests: (milestonePrs | map(select(.state == "OPEN") | {number,title,url,body,createdAt,author})),
-    openIssues: (openIssues | map({number,title,url:.html_url,body,createdAt:.created_at,author:.user,assignees})),
-    commits: (targetPrs | map(.commits) | add // [] | unique_by(.sha)),
+    dodPullRequests: (milestonePrs | map(select(responsible) |
+      {number,title,url,createdAt,closedAt})),
+    dodCreatedPullRequests: (targetPrs | map(select(.author.login == $student) | {number,title,url,createdAt,closedAt})),
+    openPullRequests: (allPrs | map(select(.state == "OPEN") | . as $pr |
+      {number,title,url,body,createdAt,author,assignees:[.assignees[]?.login],
+       milestone:(.milestone.title // null),relatedIssues:relatedIssues($pr)})),
+    openIssues: (allIssues | map(select(.state == "open") |
+      {number,title,url:.html_url,body,createdAt:.created_at,author:.user,assignees:[.assignees[]?.login],milestone:(.milestone.title // null)})),
+    commits: (targetPrs | map(select(.author.login == $student) | .commits) | add // [] | unique_by(.sha)),
     githubComments: ((issueComments + reviewComments) | map(select(.user.login == $student) |
       select((.issue_url // .pull_request_url // "") as $url |
         any(milestoneIssues[]; .number as $number | $url | endswith("/" + ($number | tostring))) or
         any(milestonePrs[]; .number as $number | $url | endswith("/" + ($number | tostring)))))),
     troubleshooting: [],
-    aiUsage: ($aiUsage | with_entries(select(.key as $key | any(targetPrs[]; (.number | tostring) == $key)))), dodAssessment: $dodAssessment
+    aiUsage: ($aiUsage | with_entries(select(.key as $key | any(closedPrs[]; (.number | tostring) == $key)))), dodAssessment: $dodAssessment
   } |
-  .dodAssessment = (if ([.dodIssues[].number] | sort) == $previousIssues and ([.dodPullRequests[].number] | sort) == $previousPrs then .dodAssessment else {} end) |
+  .dodAssessment = (if ([.dodIssues[].number] | sort) == $previousIssues and ([.dodPullRequests[].number] | sort) == $previousPrs and ([.dodCreatedPullRequests[].number] | sort) == $previousCreatedPrs then .dodAssessment else {} end) |
   .summary = {
     closedPrCount: (.closedPullRequests | length),
     mergedPrCount: (.closedPullRequests | map(select(.mergedAt != null)) | length),
@@ -287,7 +325,7 @@ jq -n \
     githubCommentCount: (.githubComments | length), troubleshootingCount: (.troubleshooting | length)
   }
 ' > "$TEMP_DIR/report.json"
-jq -e --arg milestone "$MILESTONE" '.schemaVersion == 3 and .milestone == $milestone' "$TEMP_DIR/report.json" >/dev/null
+jq -e --arg milestone "$MILESTONE" '.schemaVersion == 4 and .milestone == $milestone' "$TEMP_DIR/report.json" >/dev/null
 mkdir -p "$DATA_DIR"
 if [[ -f "$DATA_FILE" ]]; then
   backup="${DATA_DIR}/${MILESTONE}.backup-${FILE_STAMP}.json.bak"
@@ -323,27 +361,39 @@ body{background:linear-gradient(135deg,#071426,#102a4c 55%,#16142d);min-height:1
 .overview-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.6rem;margin:.9rem 0}
 .metric-card{display:flex;flex-direction:column;padding:.7rem;background:var(--surface-2);border-radius:.4rem}
 .metric-card strong{font-size:1.6rem;color:var(--accent)}
-#overview-text{height:22rem;font-family:ui-monospace,monospace;white-space:pre;resize:vertical}
+#overview-text{max-height:28rem;overflow:auto;padding:1rem;background:#0d1b33;border:1px solid #6385b6;border-radius:.4rem;font-family:ui-monospace,monospace}
+.overview-row{margin:.2rem 0;overflow-wrap:anywhere}
+.overview-depth-1{margin-left:1.5rem}.overview-depth-2{margin-left:3rem}
 .detail-card{margin-top:1rem}
 .detail-card .title{margin-bottom:.45rem}
 .list-item,.dod-item{border-top:1px solid #526b90;padding:1rem 0}
+.detail-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:.5rem 1rem;margin:.75rem 0}
+.detail-fields dt{color:var(--muted);font-size:.8rem}.detail-fields dd{overflow-wrap:anywhere}
+.related-items{margin:.75rem 0}.related-items h5{font-weight:700}
+.related-record{margin:.5rem 0;padding:.75rem;background:var(--surface-2);border-radius:.35rem}
 .description{white-space:pre-wrap;margin-top:.6rem;max-height:16rem;overflow:auto}
 .ai-controls{padding:.8rem;margin-top:.8rem;border:1px solid #526b90;border-radius:.4rem}
 .ai-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:.5rem}
 .ai-grid .checkbox{color:var(--text)}
+.dod-options{display:grid;gap:.5rem}.dod-options .checkbox{color:var(--text)}
 .other-label{margin-top:.75rem}
 .save-status{min-height:1.2rem;color:#a5e5ff;font-size:.85rem}
 details summary{cursor:pointer;color:var(--text)}
+.github-preview[hidden]{display:none!important}
+.github-preview{position:fixed;z-index:1000;width:min(32rem,calc(100vw - 1rem));max-height:min(25rem,calc(100vh - 1rem));overflow:auto;padding:1rem;background:#102544;color:var(--text);border:2px solid var(--accent);border-radius:.5rem;box-shadow:0 1rem 2.5rem #000a}
+.github-preview h3,.github-preview h4{font-weight:700;margin:.4rem 0}.github-preview h3{font-size:1.1rem}.github-preview a{color:#a5e5ff;text-decoration:underline}
+.preview-body{white-space:pre-wrap;overflow-wrap:anywhere;margin:.6rem 0}.preview-entry{border-top:1px solid #526b90;padding:.5rem 0}.preview-entry small{display:block;color:var(--muted)}
 </style>
 </head>
 <body>
 <section class="hero"><div class="hero-body"><div class="container"><h1 class="title">Weekly Engineering Review</h1><p class="subtitle" id="report-meta"></p></div></div></section>
 <main class="section"><div class="container">
 <section class="box summary-card"><label class="label" for="report-select">表示する記録</label><div class="select is-fullwidth"><select id="report-select">__REPORT_OPTIONS__</select></div></section>
-<section class="box summary-card" id="overview"><h2 class="title is-3">全体概要</h2><div class="overview-metrics" id="overview-metrics"></div><p>下のテキストをそのままスライドへ貼り付けられます。</p><textarea class="textarea" id="overview-text" readonly></textarea><button class="button is-info" id="copy-button" type="button">概要をコピー</button><span id="copy-status" aria-live="polite"></span><div id="ai-warning"></div><div id="ai-overview"></div><div id="dod-overview"></div><nav class="summary-links" id="overview-links" aria-label="詳細へのリンク"></nav></section>
-<section class="box summary-card" id="dod-form"><h2 class="title is-3">DoD自己評価</h2><p>「すべて」は、このMilestoneに属する自分が作成したIssue・PRを指します。各項目を選択すると表示中のJSONへ保存されます。</p><div id="dod-form-items"></div></section>
+<section class="box summary-card" id="overview"><h2 class="title is-3">全体概要</h2><div class="overview-metrics" id="overview-metrics"></div><p>概要をコピーすると、Googleスプレッドシートへ貼り付けられるタブ区切りテキストをコピーします。</p><div id="overview-text"></div><button class="button is-info" id="copy-button" type="button">概要をコピー</button><span id="copy-status" aria-live="polite"></span><div id="ai-warning" aria-live="polite"></div><div id="dod-warning" aria-live="polite"></div><nav class="summary-links" aria-label="入力欄へのリンク"><a class="summary-link" href="#closed-prs">PRごとのAI利用へ</a><a class="summary-link" href="#dod-form">DoD自己評価へ</a></nav></section>
+<section class="box summary-card" id="dod-form"><h2 class="title is-3">DoD自己評価</h2><p>担当Issueは自分がAssigneeのものです。担当PRはAssigneeがいればその中に自分が含まれるもの、いなければ自分が作成したものです。各項目を選択すると表示中のJSONへ保存されます。</p><div id="dod-form-items"></div></section>
 <div id="details"></div>
 <div id="unfinished"></div>
+<aside id="github-preview" class="github-preview" role="tooltip" hidden></aside>
 <p class="footer-note">AI利用とDoDの回答は表示中のJSONへ保存されます。ページを閉じると、約30秒後にローカルサーバは終了します。</p>
 </div></main>
 <script>const report=
@@ -355,6 +405,6 @@ printf '\n</script></body></html>\n' >> "$REPORT_FILE"
 PORT="$((18000 + RANDOM % 1000))"
 echo "作成しました: $DATA_FILE"
 echo "表示します: $REPORT_FILE"
-"$POWERSHELL_EXE" -NoProfile -ExecutionPolicy Bypass -File "${SCRIPT_DIR}/server-weekly-summary.ps1" -HtmlPath "$(pwd -W)/${REPORT_FILE}" -DataPath "$(pwd -W)/${DATA_FILE}" -Port "$PORT" >/dev/null 2>&1 &
+"$POWERSHELL_EXE" -NoProfile -ExecutionPolicy Bypass -File "${SCRIPT_DIR}/server-weekly-summary.ps1" -HtmlPath "$(pwd -W)/${REPORT_FILE}" -DataPath "$(pwd -W)/${DATA_FILE}" -GhPath "$(cygpath -w "$(command -v gh)")" -Port "$PORT" >/dev/null 2>&1 &
 sleep 1
 "$POWERSHELL_EXE" -NoProfile -Command "Start-Process 'http://127.0.0.1:${PORT}/'" >/dev/null 2>&1 || true

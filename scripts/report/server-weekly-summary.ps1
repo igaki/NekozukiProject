@@ -1,26 +1,32 @@
 param(
   [string]$HtmlPath,
   [string]$DataPath,
+  [string]$GhPath,
   [int]$Port
 )
 
 $ErrorActionPreference = 'Stop'
-if ([string]::IsNullOrWhiteSpace($HtmlPath) -or [string]::IsNullOrWhiteSpace($DataPath) -or $Port -le 0) {
-  throw 'HtmlPath, DataPath, and a positive Port are required.'
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = $OutputEncoding
+if ([string]::IsNullOrWhiteSpace($HtmlPath) -or [string]::IsNullOrWhiteSpace($DataPath) -or
+    [string]::IsNullOrWhiteSpace($GhPath) -or $Port -le 0) {
+  throw 'HtmlPath, DataPath, GhPath, and a positive Port are required.'
 }
 $HtmlPath = (Resolve-Path -LiteralPath $HtmlPath).Path
 $DataPath = (Resolve-Path -LiteralPath $DataPath).Path
+$GhPath = (Resolve-Path -LiteralPath $GhPath).Path
 $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
 $listener.Start()
 $startedAt = Get-Date
 $lastHeartbeat = $null
 $bulmaPath = Join-Path (Split-Path -Path $HtmlPath -Parent) 'assets\vendor\bulma-1.0.4.min.css'
 $dataDirectory = Split-Path -Path $DataPath -Parent
+$previewCache = @{}
 
 function Send-Response($client, $statusCode, $contentType, $body) {
   $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
   $statusText = if ($statusCode -eq 200) { 'OK' } elseif ($statusCode -eq 204) { 'No Content' } elseif ($statusCode -eq 400) { 'Bad Request' } elseif ($statusCode -eq 404) { 'Not Found' } else { 'Method Not Allowed' }
-  $header = "HTTP/1.1 $statusCode $statusText`r`nContent-Type: $contentType`r`nContent-Length: $($bytes.Length)`r`nConnection: close`r`n`r`n"
+  $header = "HTTP/1.1 $statusCode $statusText`r`nContent-Type: $contentType`r`nContent-Length: $($bytes.Length)`r`nCache-Control: no-store`r`nConnection: close`r`n`r`n"
   $stream = $client.GetStream()
   $headerBytes = [System.Text.Encoding]::ASCII.GetBytes($header)
   $stream.Write($headerBytes, 0, $headerBytes.Length)
@@ -30,7 +36,7 @@ function Send-Response($client, $statusCode, $contentType, $body) {
 
 function Read-ReportData {
   $data = Get-Content -LiteralPath $DataPath -Raw -Encoding UTF8 | ConvertFrom-Json
-  if ($data.schemaVersion -ne 3) { throw 'Unsupported report JSON version.' }
+  if ($data.schemaVersion -ne 4) { throw 'Unsupported report JSON version.' }
   return $data
 }
 
@@ -60,16 +66,34 @@ function Save-AiUsage($requestBody) {
 function Save-DodAssessment($requestBody) {
   $update = $requestBody | ConvertFrom-Json
   $item = [string]$update.item
-  $choice = [string]$update.choice
-  if ($item -notmatch '^[1-7]$') { throw 'Invalid DoD item.' }
-  $allowed = '', 'no_activity', 'all', 'some_not', 'most_not', 'none_done'
-  if ($allowed -notcontains $choice) { throw 'Invalid DoD choice.' }
+  if ($item -notmatch '^[1-6]$') { throw 'Invalid DoD item.' }
   $data = Read-ReportData
-  if ($choice -eq '') {
-    $data.dodAssessment.PSObject.Properties.Remove($item)
+  if ($item -eq '6') {
+    $allowed = 'no_merged', 'reviewed', 'same_reviewer', 'no_review_result'
+    $choices = @($update.choices)
+    if ($choices.Count -gt 2 -or @($choices | Select-Object -Unique).Count -ne $choices.Count) { throw 'Invalid DoD choices.' }
+    foreach ($choice in $choices) { if ($allowed -notcontains $choice) { throw 'Invalid DoD choice.' } }
+    if ($choices.Count -gt 1 -and ($choices -contains 'no_merged' -or $choices -contains 'reviewed')) { throw 'Conflicting DoD choices.' }
+    if ($choices.Count -eq 0) { $data.dodAssessment.PSObject.Properties.Remove($item) }
+    else {
+      $entry = [pscustomobject]@{ choices = $choices; updatedAt = (Get-Date).ToString('o') }
+      $data.dodAssessment | Add-Member -MemberType NoteProperty -Name $item -Value $entry -Force
+    }
   } else {
-    $entry = [pscustomobject]@{ choice = $choice; updatedAt = (Get-Date).ToString('o') }
-    $data.dodAssessment | Add-Member -MemberType NoteProperty -Name $item -Value $entry -Force
+    $allowed = switch ($item) {
+      '1' { 'no_assigned', 'correct', 'incorrect' }
+      '2' { 'no_assigned', 'correct', 'incorrect' }
+      '3' { 'no_commits', 'no_direct_main', 'direct_main' }
+      '4' { 'no_assigned', 'complete', 'missing' }
+      '5' { 'no_assigned', 'complete', 'missing' }
+    }
+    $choice = [string]$update.choice
+    if ($choice -ne '' -and $allowed -notcontains $choice) { throw 'Invalid DoD choice.' }
+    if ($choice -eq '') { $data.dodAssessment.PSObject.Properties.Remove($item) }
+    else {
+      $entry = [pscustomobject]@{ choice = $choice; updatedAt = (Get-Date).ToString('o') }
+      $data.dodAssessment | Add-Member -MemberType NoteProperty -Name $item -Value $entry -Force
+    }
   }
   Write-ReportData $data
 }
@@ -107,6 +131,68 @@ function Select-ReportData($requestTarget) {
   if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { throw 'Report JSON was not found.' }
   $script:DataPath = $candidate
   return $uri.AbsolutePath
+}
+
+function Invoke-GhObject([string]$endpoint) {
+  $global:LASTEXITCODE = 0
+  $result = & $GhPath api $endpoint 2>&1
+  if ($LASTEXITCODE -ne 0) { throw 'GitHub preview request failed.' }
+  return (($result -join "`n") | ConvertFrom-Json)
+}
+
+function Invoke-GhItems([string]$endpoint) {
+  $global:LASTEXITCODE = 0
+  $result = & $GhPath api --paginate --slurp $endpoint 2>&1
+  if ($LASTEXITCODE -ne 0) { throw 'GitHub preview discussion request failed.' }
+  $pages = ($result -join "`n") | ConvertFrom-Json
+  $items = @()
+  foreach ($page in $pages) { foreach ($item in $page) { $items += $item } }
+  return $items
+}
+
+function Get-Preview([string]$requestTarget) {
+  if ($requestTarget -cmatch '^/api/preview\?kind=(issue|pr)&number=([1-9][0-9]*)$') {
+    $kind = $Matches[1]
+    $number = [int]$Matches[2]
+  } else { throw 'Invalid preview request.' }
+  $data = Read-ReportData
+  $repository = [string]$data.repository
+  if ($repository -cnotmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') { throw 'Invalid repository.' }
+  $allowed = @()
+  if ($kind -eq 'issue') {
+    $allowed += @($data.dodIssues) + @($data.manuallyClosedIssues) + @($data.openIssues) + @($data.completedIssues)
+    foreach ($pr in $data.closedPullRequests) { $allowed += @($pr.relatedIssues) }
+  } else {
+    $allowed += @($data.closedPullRequests) + @($data.mergedByStudent) + @($data.dodPullRequests) +
+      @($data.dodCreatedPullRequests) + @($data.openPullRequests) + @($data.pullRequests)
+  }
+  $linked = @($data.githubComments) + @($data.troubleshooting)
+  $pathKind = if ($kind -eq 'issue') { 'issues' } else { 'pull' }
+  $linkedPattern = '^https://github\.com/' + [regex]::Escape($repository) + '/' + $pathKind + '/' + $number + '(?:[?#]|$)'
+  if (-not @($allowed | Where-Object { $_.number -eq $number }).Count -and
+      -not @($linked | Where-Object { $_.html_url -match $linkedPattern -or $_.url -match $linkedPattern }).Count) {
+    throw 'Preview target is not in this report.'
+  }
+  $key = "$repository/$kind/$number"
+  if ($script:previewCache.ContainsKey($key)) { return $script:previewCache[$key] }
+  $endpoint = if ($kind -eq 'issue') { "repos/$repository/issues/$number" } else { "repos/$repository/pulls/$number" }
+  $item = Invoke-GhObject $endpoint
+  $comments = @(Invoke-GhItems "repos/$repository/issues/$number/comments?per_page=100" |
+    ForEach-Object { [ordered]@{ author = $_.user.login; body = $_.body; createdAt = $_.created_at } })
+  $reviews = @()
+  if ($kind -eq 'pr') {
+    $reviews = @(Invoke-GhItems "repos/$repository/pulls/$number/reviews?per_page=100" |
+      ForEach-Object { [ordered]@{ author = $_.user.login; state = $_.state; body = $_.body; submittedAt = $_.submitted_at } })
+  }
+  $preview = [ordered]@{
+    kind = $kind; number = $number; title = $item.title; state = $item.state; body = $item.body
+    url = $item.html_url; author = $item.user.login; assignees = @($item.assignees | ForEach-Object { $_.login })
+    milestone = $item.milestone.title; labels = @($item.labels | ForEach-Object { $_.name })
+    comments = $comments; reviews = $reviews
+  }
+  $json = $preview | ConvertTo-Json -Depth 20 -Compress
+  $script:previewCache[$key] = $json
+  return $json
 }
 
 try {
@@ -159,6 +245,10 @@ try {
           $lastHeartbeat = Get-Date
           Send-Response $client 204 'text/plain; charset=utf-8' ''
         }
+        '/api/preview' {
+          if ($method -ne 'GET') { Send-Response $client 405 'text/plain; charset=utf-8' 'Method Not Allowed'; break }
+          Send-Response $client 200 'application/json; charset=utf-8' (Get-Preview $parts[1])
+        }
         '/api/ai-usage' {
           if ($method -ne 'POST') { Send-Response $client 405 'text/plain; charset=utf-8' 'Method Not Allowed'; break }
           Save-AiUsage $requestBody
@@ -178,6 +268,7 @@ try {
     }
   }
 } finally {
+  $previewCache.Clear()
   $listener.Stop()
   $listener.Close()
 }
