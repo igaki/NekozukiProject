@@ -558,7 +558,7 @@ bash scripts/report/weekly-summary.sh --milestone lec06
 bash scripts/report/weekly-summary.sh --milestone lec07 --student fukuyasu
 ```
 
-`--milestone` は必須で，`lec06`～`lec14` のGitHub上に存在するMilestoneを指定します．存在しない場合は作成方法を案内して停止します．全Issue・PRの中にMilestone未割当があれば番号を警告し，割当後に同じコマンドを再実行するよう案内して集計は続けます．PR・Issue・コミットの取得に失敗した場合は集計を停止し，既存のJSON・HTMLを差し替えず，バックアップも作りません．
+`--milestone` は必須で，`lec06`～`lec14` のGitHub上に存在するMilestoneを指定します．存在しない場合は作成方法を案内して停止します．全Issue・PRの中にMilestone未割当があれば番号を警告し，割当後に同じコマンドを再実行するよう案内して集計は続けます．Issue・PRに複数のassigneeが設定されている場合は，対象を表示して集計を停止します．GitHub上で内容を一番よく理解している主担当のみを残し，同じコマンドを再実行してください．この場合やPR・Issue・コミットの取得に失敗した場合は，既存のJSON・HTMLを差し替えず，バックアップも作りません．
 
 ### 出力物と確認
 
@@ -566,7 +566,7 @@ bash scripts/report/weekly-summary.sh --milestone lec07 --student fukuyasu
 
 `--student` を省略すると現在ログイン中のGitHubユーザーを対象にします．日時による絞り込みは行いません．担当PRは，assigneeが設定されていれば自分がassigneeであるPR，未設定なら自分が作成したPRです．前回入力したAI利用は同じClose済み担当PRについて引き継ぎ，DoD自己評価は対象Issue・PRの集合が変わらない場合に引き継ぎます．以前の形式のJSONから回答は引き継ぎません．
 
-ページ上部の「表示する記録」でMilestone別の JSON を切り替えられます．全体概要の「概要をコピー」はレイアウトとGitHubリンクを含むHTML，URL付きテキストをコピーし，貼り付け先が対応する形式で表示します．Close済み担当PRの下には関連Issueと現在のOpen／Closedを表示します．DoD自己評価とClose済み担当PRごとのAI利用は，選択内容が表示中の JSON に保存されます．未完了エリアにはMilestoneや担当者を問わず全Open PR・Issueを表示します．コミットは自分が作成した対象MilestoneのPRのもの，コメントは対象Issue・PRに付いたものを集計します．Milestoneに紐付かないローカルのtrouble reportは集計対象外です．ページを閉じるとローカルサーバは約 30 秒後に終了します．
+ページ上部の「表示する記録」でMilestone別の JSON を切り替えられます．全体概要の「概要をコピー」はレイアウトとGitHubリンクを含むHTML，URL付きテキストをコピーし，貼り付け先が対応する形式で表示します．全体概要ではOpen PR・Open Issueの件数をtrouble reportの後に表示します．Close済み担当PRの下には関連Issueと現在のOpen／Closedを表示します．DoD自己評価とClose済み担当PRごとのAI利用は，選択内容が表示中の JSON に保存されます．未完了エリアにはMilestoneや担当者を問わず全Open PR・Issueを表示します．コミットは自分が作成した対象MilestoneのPRのもの，コメントは対象Issue・PRに付いたものを集計します．Milestoneに紐付かないローカルのtrouble reportは集計対象外です．ページを閉じるとローカルサーバは約 30 秒後に終了します．
 
 Issue・PRのGitHubリンクにマウスを重ねると，本文やコメント・レビューをローカルのオーバーレイで確認できます．同じリンクの内容はサーバ稼働中に再利用し，サーバ終了時にメモリから全件破棄します．リンクをクリックするとGitHubの元ページを開けます．DoD自己評価の対象リンクは `Issue#5`，`PR#8` のように種類を表示します．
 

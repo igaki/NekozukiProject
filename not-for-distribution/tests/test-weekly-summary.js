@@ -26,7 +26,7 @@ try {
   const pr = (number, title, author, createdAt, closedAt, mergedAt, mergedBy, state) => ({
     number, title, url: `https://github.com/example/team/pull/${number}`, body: `${title}の説明`,
     author: {login: author}, createdAt, closedAt, mergedAt, mergedBy: mergedBy ? {login: mergedBy} : null,
-    headRefName: `issue-${number}`, state, assignees: [{login: author}, ...(number === 11 ? [{login: 'alice'}] : [])],
+    headRefName: `issue-${number}`, state, assignees: [{login: number === 11 ? 'alice' : author}],
     milestone: {title: number === 13 ? 'lec07' : 'lec06'}
   });
   const pulls = [
@@ -168,8 +168,13 @@ esac
   assert.match(elements.get('#overview-text').innerHTML, /\[Open\]Issue #3/);
   assert.match(elements.get('#overview-text').innerHTML, /\[NotMerged\]PR #14/);
   assert.match(elements.get('#overview-text').innerHTML, /関連Issueなし/);
-  assert.match(elements.get('#overview-text').innerHTML, /PR #11 \[bob、alice\]/);
+  assert.match(elements.get('#overview-text').innerHTML, /PR #11 \[alice\]/);
   assert.match(elements.get('#overview-text').innerHTML, /Open PR: 2件/);
+  assert.ok(elements.get('#overview-text').innerHTML.indexOf('trouble report: 0件') < elements.get('#overview-text').innerHTML.indexOf('Open PR: 2件'));
+  assert.ok(elements.get('#overview-text').innerHTML.indexOf('Open PR: 2件') < elements.get('#overview-text').innerHTML.indexOf('Open Issue: 2件'));
+  const metricHtml = elements.get('#overview-metrics').innerHTML;
+  assert.ok(metricHtml.indexOf('href="#trouble"') < metricHtml.indexOf('href="#open-prs"'));
+  assert.ok(metricHtml.indexOf('href="#open-prs"') < metricHtml.indexOf('href="#open-issues"'));
   assert.match(elements.get('#overview-text').innerHTML, /milestone: lec07/);
   assert.match(elements.get('#overview-text').innerHTML, /手動でCloseされたIssue: 1件/);
   assert.doesNotMatch(elements.get('#overview-text').innerHTML, /PR連動でCloseされたIssue:/);
@@ -315,6 +320,27 @@ switch ($endpoint) {
   assert.deepEqual(secondData.dodAssessment['6'].choices, ['same_reviewer', 'no_review_result']);
   assert.deepEqual(secondData.aiUsage['10'].choices, ['debug', 'other']);
   const htmlBeforeFailure = fs.readFileSync(htmlPath, 'utf8');
+  for (const kind of ['PR', 'Issue']) {
+    if (kind === 'PR') {
+      pulls[3].assignees = [{login: 'alice'}, {login: 'bob'}];
+      write('pulls.json', pulls);
+    } else {
+      issues[3].assignees = [{login: 'alice'}, {login: 'bob'}];
+      write('issues.json', [issues]);
+    }
+    const rejected = spawnSync(bash, ['-lc', command], {cwd: repo, encoding: 'utf8', timeout: 120000});
+    assert.notEqual(rejected.status, 0, `${kind} with two assignees must stop the report`);
+    assert.match(rejected.stderr, new RegExp(`${kind} #(?:13|4) https://github\\.com/example/team/`));
+    assert.match(rejected.stderr, /assignees: alice, bob/);
+    assert.match(rejected.stderr, /内容を一番よく理解している主担当のみをassigneeに残してください/);
+    assert.match(rejected.stderr, /再実行してください/);
+    assert.doesNotMatch(rejected.stderr, /対象学生のPR詳細を取得しています/);
+    assert.deepEqual(JSON.parse(fs.readFileSync(dataPath, 'utf8')), secondData);
+    assert.equal(fs.readFileSync(htmlPath, 'utf8'), htmlBeforeFailure);
+    assert.equal(fs.readdirSync(dataDir).filter(name => name.endsWith('.bak')).length, 1);
+    if (kind === 'PR') { pulls[3].assignees = [{login: 'alice'}]; write('pulls.json', pulls); }
+    else { issues[3].assignees = [{login: 'alice'}]; write('issues.json', [issues]); }
+  }
   for (const failure of ['pr', 'commits', 'issue_start', 'issue']) {
     const failed = spawnSync(bash, ['-lc', command], {cwd: repo, encoding: 'utf8', timeout: 120000,
       env: {...process.env, MOCK_FAIL: failure}});
@@ -328,9 +354,9 @@ switch ($endpoint) {
     {cwd: repo, encoding: 'utf8', timeout: 120000});
   if (bobRun.status !== 0) throw new Error(`bob weekly-summary failed:\n${bobRun.stdout}\n${bobRun.stderr}`);
   const bobData = JSON.parse(fs.readFileSync(path.join(repo, 'docs', 'weekly-summary-data', 'bob', 'lec06.json'), 'utf8'));
-  assert.deepEqual(bobData.completedIssues.map(item => item.number), [5]);
+  assert.deepEqual(bobData.completedIssues.map(item => item.number), []);
   assert.deepEqual(bobData.dodIssues.map(item => item.number), [3]);
-  assert.deepEqual(bobData.dodPullRequests.map(item => item.number), [11, 15]);
+  assert.deepEqual(bobData.dodPullRequests.map(item => item.number), [15]);
   assert.deepEqual(bobData.dodCreatedPullRequests.map(item => item.number), [11]);
   pulls[3].milestone = null;
   write('pulls.json', pulls);

@@ -97,6 +97,19 @@ gh pr list --repo "$REPOSITORY" --state all --limit 10000 \
 gh api --paginate --slurp "repos/${REPOSITORY}/issues?state=all&per_page=100" |
   jq 'add // [] | map(select(.pull_request == null))' > "$TEMP_DIR/all-issues.json"
 
+multiple_prs="$(jq -r '.[] | select(([.assignees[]?.login] | unique | length) > 1) |
+  "PR #\(.number) \(.url) — assignees: \([.assignees[]?.login] | unique | join(", "))"' "$TEMP_DIR/all-pulls.json")"
+multiple_issues="$(jq -r '.[] | select(([.assignees[]?.login] | unique | length) > 1) |
+  "Issue #\(.number) \(.html_url) — assignees: \([.assignees[]?.login] | unique | join(", "))"' "$TEMP_DIR/all-issues.json")"
+if [[ -n "$multiple_prs" || -n "$multiple_issues" ]]; then
+  echo 'エラー: 複数のassigneeが設定されたIssue・PRがあります。' >&2
+  [[ -z "$multiple_issues" ]] || printf '%s\n' "$multiple_issues" >&2
+  [[ -z "$multiple_prs" ]] || printf '%s\n' "$multiple_prs" >&2
+  echo 'GitHub上で内容を一番よく理解している主担当のみをassigneeに残してください。' >&2
+  echo "修正後に bash scripts/report/weekly-summary.sh --milestone ${MILESTONE} --student ${STUDENT} を再実行してください。既存のレポートは変更していません。" >&2
+  exit 1
+fi
+
 missing_prs="$(jq -r '.[] | select(.milestone == null) | "PR #\(.number) \(.url)"' "$TEMP_DIR/all-pulls.json")"
 missing_issues="$(jq -r '.[] | select(.milestone == null) | "Issue #\(.number) \(.html_url)"' "$TEMP_DIR/all-issues.json")"
 if [[ -n "$missing_prs" || -n "$missing_issues" ]]; then

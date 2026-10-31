@@ -113,11 +113,11 @@ function renderOverview() {
     ['closed-prs', 'Close済み担当PR', s.closedPrCount],
     ['merged-by-student', '自分がマージしたPR', s.mergedByStudentCount],
     ['manual-issues', '手動Close Issue', s.manuallyClosedIssueCount],
-    ['open-prs', 'Open PR', s.openPrCount],
-    ['open-issues', 'Open Issue', s.openIssueCount],
     ['commits', 'コミット', s.commitCount],
     ['comments', 'コメント', s.githubCommentCount],
-    ['trouble', 'trouble report', s.troubleshootingCount]
+    ['trouble', 'trouble report', s.troubleshootingCount],
+    ['open-prs', 'Open PR', s.openPrCount],
+    ['open-issues', 'Open Issue', s.openIssueCount]
   ].map(([id, label, count]) => `<a class="metric-card" href="#${id}"><span>${esc(label)}</span><strong>${count}</strong></a>`).join('');
   q('#overview-text').innerHTML = overviewHtml();
   const unansweredAi = report.closedPullRequests.filter(pr => !report.aiUsage?.[String(pr.number)]?.choices?.length);
