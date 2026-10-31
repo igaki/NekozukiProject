@@ -236,7 +236,7 @@ docs/temp/issues.md の Issue game-room-join の AC 2 を，
 
 ## 4. 計画b: Issue を登録する(スクリプト:register-from-file.sh)
 
-チームで確認し，担当者とMilestoneを記入した Issue 草案を GitHub Issue として登録します．**登録前に，指定するMilestone自体がGitHubリポジトリに作成済みであることを確認してください．** `milestone: lec06` と草案に書いただけではMilestone自体は作成されません．未作成なら[準備の手順](#0-準備)でGitHubに登録してから進みます．
+チームで確認し，担当者とMilestoneを記入した Issue 草案を GitHub Issue として登録します．**IssueにMilestoneを設定する前に，指定するMilestone自体をGitHubリポジトリ上で作成してください．** `milestone: lec06` と草案に書いただけではMilestone自体は作成されません．未作成なら[準備の手順](#0-準備)でGitHubに登録してから進みます．
 
 ### 実施の流れ
 
@@ -402,7 +402,7 @@ Copilot Chat の入力欄で，`/prepare-pr` を選んでから次のように�
 
 ### 5-5. Pull Request を登録する(スクリプト:create-pr.sh)
 
-確認済みの PR 本文，下書き，コミット済みブランチから GitHub Pull Request を作成します．
+確認済みの PR 本文，下書き，コミット済みブランチから GitHub Pull Request を作成します．**PRにMilestoneを設定する場合も，そのMilestoneが先にGitHubリポジトリ上で作成されている必要があります．** IssueとPRは同じリポジトリのMilestoneを使います．未作成なら[準備の手順](#0-準備)で作成してから進んでください．
 
 #### 実施の流れ
 
@@ -558,7 +558,15 @@ bash scripts/report/weekly-summary.sh --milestone lec06
 bash scripts/report/weekly-summary.sh --milestone lec07 --student fukuyasu
 ```
 
-`--milestone` は必須で，`lec06`～`lec14` のGitHub上に存在するMilestoneを指定します．存在しない場合は作成方法を案内して停止します．全Issue・PRの中にMilestone未割当があれば番号を警告し，割当後に同じコマンドを再実行するよう案内して集計は続けます．Issue・PRに複数のassigneeが設定されている場合は，対象を表示して集計を停止します．GitHub上で内容を一番よく理解している主担当のみを残し，同じコマンドを再実行してください．この場合やPR・Issue・コミットの取得に失敗した場合は，既存のJSON・HTMLを差し替えず，バックアップも作りません．
+`--milestone` は必須で，`lec06`～`lec14` のGitHub上に存在するMilestoneを指定します．
+
+### 警告・エラーが出た場合
+
+- **引数で指定したMilestoneがGitHub上にない場合**: 作成方法を案内して集計を停止します．GitHubの **Issues → Milestones → New milestone** で作成してから，同じコマンドを再実行してください．
+- **Milestone未割当のIssue・PRがある場合**: 指定したMilestone以外のものも含め，番号とURLを警告します．集計は続きますが，GitHub上で該当Issue・PRにMilestoneを設定し，同じコマンドを再実行してください．
+- **複数のassigneeが設定されたIssue・PRがある場合**: 対象とassigneeを表示して集計を停止します．GitHub上で内容を一番よく理解している主担当だけを残し，同じコマンドを再実行してください．この場合，既存のJSON・HTMLは差し替えず，バックアップも作りません．
+
+PR・Issue・コミットの取得に失敗した場合も集計を停止し，既存のJSON・HTMLを差し替えず，バックアップも作りません．
 
 ### 出力物と確認
 
@@ -662,7 +670,7 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/fukuyasu/lec
 | 初期化 | `scripts/harness/init-project.sh` | SSH remote，GitHub CLI 認証，Collaborator 一覧，Spring Bootアプリの自動検出，Gradleテストを検査し，`repository_name`・`app_name`・`app_dir` と開発者一覧を更新する．Collaborator が0人なら停止する． |
 | 自動テスト | `.github/workflows/ci.yml` | Pull Request 作成時と `main` への push 時に，`docs/project.md` の `app_dir` を読み，そのフォルダで `./gradlew test` を実行する． |
 | テンプレート同期 | `scripts/harness/generate-template-harness.sh` | `docs/template-constraints.md` の `HARNESS-CONFIG` から，Issue Form，PR テンプレート，PR 本文検査 Action，`scripts/lib/markdown-format.sh` を生成する． |
-| 週次振り返りの集計 | `scripts/report/weekly-summary.sh`，`scripts/report/weekly-summary-ui.js`，`scripts/report/server-weekly-summary.ps1` | 既存Milestoneを指定し，未割当Issue・PRを警告しながら集計する．Milestone別JSONをバックアップして差し替え，閲覧用HTMLとスプレッドシート貼り付け用のタブ区切り概要を生成する．DoD自己評価とClose済み担当PRごとのAI利用をJSONへ保存する． |
+| 週次振り返りの集計 | `scripts/report/weekly-summary.sh`，`scripts/report/weekly-summary-ui.js`，`scripts/report/server-weekly-summary.ps1` | 既存Milestoneを指定し，未割当Issue・PRを警告しながら集計する．複数assigneeのIssue・PRがあれば停止する．Milestone別JSONをバックアップして差し替え，閲覧用HTMLとスプレッドシート貼り付け用のタブ区切り概要を生成する．DoD自己評価とClose済み担当PRごとのAI利用をJSONへ保存する． |
 
 ### GitHub リポジトリ設定による main ブランチ保護
 
