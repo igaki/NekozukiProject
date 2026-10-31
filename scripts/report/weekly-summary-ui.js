@@ -56,6 +56,90 @@ const section = (id, title, items, formatter) => `<section class="box detail-car
 
 const assigneeNames = item => (item.assignees || []).map(user => typeof user === 'string' ? user : user.login).filter(Boolean);
 const ownerNames = pr => assigneeNames(pr).length ? assigneeNames(pr).join('、') : (typeof pr.author === 'string' ? pr.author : pr.author?.login) || '未設定';
+const creatorName = item => typeof item.author === 'string' ? item.author : (item.author?.login || item.user?.login || '');
+const spreadsheetCell = value => {
+  const cleaned = String(value ?? '').replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').trim();
+  return /^[=+\-@]/.test(cleaned) ? `'${cleaned}` : cleaned;
+};
+const spreadsheetDate = value => {
+  if (!value) return '';
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return '';
+  const date = new Date(timestamp + 9 * 60 * 60 * 1000);
+  const two = number => String(number).padStart(2, '0');
+  return `${date.getUTCFullYear()}/${two(date.getUTCMonth() + 1)}/${two(date.getUTCDate())} ${two(date.getUTCHours())}:${two(date.getUTCMinutes())}`;
+};
+const spreadsheetAi = number => {
+  const answer = report.aiUsage?.[String(number)];
+  if (!answer?.choices?.length) return '未選択';
+  return answer.choices.map(choice => choice === 'none' ? '全く利用していない' :
+    choice === 'other' ? `other${answer.other ? ': ' + answer.other : ''}` : choice).join('; ');
+};
+function reportItems() {
+  const prs = new Map(), issues = new Map();
+  const include = (map, item, category) => {
+    if (!item?.number) return;
+    const current = map.get(item.number);
+    if (current) {
+      if (!current.categories.includes(category)) current.categories.push(category);
+      for (const [key, value] of Object.entries(item)) {
+        if ((current[key] == null || current[key] === '') && value != null && value !== '') current[key] = value;
+      }
+      for (const related of item.relatedIssues || []) {
+        if (!current.relatedIssues.some(issue => issue.number === related.number)) current.relatedIssues.push(related);
+      }
+    } else map.set(item.number, {...item, categories: [category], relatedIssues: [...(item.relatedIssues || [])]});
+  };
+  for (const pr of report.closedPullRequests) include(prs, pr, 'Close済み担当PR');
+  for (const pr of report.mergedByStudent) include(prs, pr, '自分がマージしたPR');
+  for (const pr of report.openPullRequests) include(prs, pr, '全体のOpen PR');
+  const relatedPrs = new Map();
+  for (const pr of prs.values()) {
+    for (const issue of pr.relatedIssues) {
+      include(issues, issue, 'PR関連Issue');
+      if (!relatedPrs.has(issue.number)) relatedPrs.set(issue.number, new Set());
+      relatedPrs.get(issue.number).add(pr.number);
+    }
+  }
+  for (const issue of report.manuallyClosedIssues) include(issues, issue, '手動Close Issue');
+  for (const issue of report.openIssues) include(issues, issue, '全体のOpen Issue');
+  return {prs, issues, relatedPrs};
+}
+function spreadsheetTsv() {
+  const headers = ['行種別', 'Milestone', '指標・区分', '件数/番号', 'タイトル・設問', 'GitHub URL',
+    '主担当', '作成者', '作成日時', 'Close日時', 'マージ日時', 'マージ者', '関連Issue・PR', 'AI利用結果/DoD回答'];
+  const rows = [headers];
+  const add = values => rows.push(headers.map((_, index) => spreadsheetCell(values[index])));
+  const s = report.summary;
+  for (const [label, count] of [
+    ['01 Close済み担当PR', s.closedPrCount], ['02 うちマージ済み', s.mergedPrCount],
+    ['03 自分がマージしたPR', s.mergedByStudentCount], ['04 手動Close Issue', s.manuallyClosedIssueCount],
+    ['05 総コミット', s.commitCount], ['06 総コメント', s.githubCommentCount],
+    ['07 trouble report', s.troubleshootingCount], ['08 全体のOpen PR', s.openPrCount],
+    ['09 全体のOpen Issue', s.openIssueCount]
+  ]) add(['集計', report.milestone, label, count]);
+  const {prs, issues, relatedPrs} = reportItems();
+  for (const pr of prs.values()) {
+    add(['PR', report.milestone, pr.categories.join('・'), pr.number, pr.title, pr.url,
+      ownerNames(pr), creatorName(pr), spreadsheetDate(pr.createdAt), spreadsheetDate(pr.closedAt),
+      spreadsheetDate(pr.mergedAt), typeof pr.mergedBy === 'string' ? pr.mergedBy : pr.mergedBy?.login,
+      pr.relatedIssues.length ? pr.relatedIssues.map(issue => `Issue #${issue.number}`).join('、') : '関連Issueなし',
+      pr.categories.includes('Close済み担当PR') ? spreadsheetAi(pr.number) : '']);
+  }
+  for (const issue of issues.values()) {
+    const related = [...(relatedPrs.get(issue.number) || [])].map(number => `PR #${number}`).join('、');
+    add(['Issue', report.milestone, issue.categories.join('・'), issue.number, issue.title, issue.url,
+      assigneeNames(issue).join('、') || '未設定', creatorName(issue), spreadsheetDate(issue.createdAt),
+      spreadsheetDate(issue.closedAt), '', '', related, '']);
+  }
+  dodQuestions.forEach((question, index) => {
+    const row = Array(headers.length).fill('');
+    row[0] = 'DoD'; row[1] = report.milestone; row[2] = '自己評価'; row[3] = index + 1;
+    row[4] = question; row[13] = dodLabel(String(index + 1));
+    add(row);
+  });
+  return rows.map(row => row.join('\t')).join('\n');
+}
 const plainLink = (label, url) => `${label} (${url})`;
 function overviewRows() {
   const s = report.summary, rows = [];
@@ -103,7 +187,6 @@ function overviewRows() {
   dodQuestions.forEach((_, index) => add(`${index + 1}. ${dodLabel(String(index + 1))}`, undefined, 1));
   return rows;
 }
-const overviewText = () => overviewRows().map(row => row.plain).join('\n');
 const overviewHtml = () => `<div class="overview-content">${overviewRows().map(row => `<p class="overview-row overview-depth-${row.depth}" style="margin:2px 0;padding-left:${row.depth * 24}px">${row.html}</p>`).join('')}</div>`;
 
 function renderOverview() {
@@ -146,20 +229,68 @@ function aiControls(pr) {
   return `<fieldset class="ai-controls" data-pr="${pr.number}"><legend class="label">AI利用（複数選択可）</legend><div class="ai-grid">${aiOptions.map(([value, label]) => `<label class="checkbox"><input type="checkbox" value="${value}" ${answer.choices?.includes(value) ? 'checked' : ''}> ${esc(label)}</label>`).join('')}</div><label class="label other-label" for="other-${pr.number}">その他の内容</label><input class="input" id="other-${pr.number}" data-other type="text" maxlength="500" value="${esc(answer.other || '')}" ${answer.choices?.includes('other') ? '' : 'disabled'}><p class="save-status" aria-live="polite"></p></fieldset>`;
 }
 
+const detailFields = fields => `<dl class="detail-fields">${fields.map(([label, value, html]) =>
+  `<div><dt>${esc(label)}</dt><dd>${html ? (value || 'なし') : esc(value || 'なし')}</dd></div>`).join('')}</dl>`;
+const githubField = item => ['GitHub URL', link(item.url, item.url), true];
+const issueFields = (issue, relatedPrs, prs) => {
+  const links = [...(relatedPrs.get(issue.number) || [])].map(number => {
+    const pr = prs.get(number);
+    return pr ? link(pr.url, `PR #${number}`) : `PR #${number}`;
+  }).join('、');
+  return detailFields([
+    ['区分', issue.categories?.join('・') || 'PR関連Issue'], ['集計Milestone', report.milestone], githubField(issue),
+    ['主担当', assigneeNames(issue).join('、') || '未設定'], ['作成者', creatorName(issue)],
+    ['作成日時（日本時間）', spreadsheetDate(issue.createdAt)], ['Close日時（日本時間）', spreadsheetDate(issue.closedAt)],
+    ['関連PR', links, true]
+  ]);
+};
+const relatedIssueCard = (issue, issues, relatedPrs, prs) => {
+  const record = issues.get(issue.number) || issue;
+  const state = String(issue.state).toLowerCase() === 'closed' || issue.closedAt ? 'Closed' : 'Open';
+  return `<div class="related-record"><p>${link(issue.url, `[${state}] Issue #${issue.number} ${issue.title}`)}</p>${issueFields(record, relatedPrs, prs)}</div>`;
+};
+function prRecord(pr, items, {id, editable = false, collapsible = false} = {}) {
+  const heading = link(pr.url, `PR #${pr.number} ${pr.title}`);
+  const related = pr.relatedIssues.length ? pr.relatedIssues.map(issue =>
+    relatedIssueCard(issue, items.issues, items.relatedPrs, items.prs)).join('') : '<p>関連Issueなし</p>';
+  const fields = detailFields([
+    ['区分', pr.categories.join('・')], ['集計Milestone', report.milestone], githubField(pr),
+    ['主担当', ownerNames(pr)], ['作成者', creatorName(pr)],
+    ['作成日時（日本時間）', spreadsheetDate(pr.createdAt)], ['Close日時（日本時間）', spreadsheetDate(pr.closedAt)],
+    ['マージ日時（日本時間）', spreadsheetDate(pr.mergedAt)],
+    ['マージ者', typeof pr.mergedBy === 'string' ? pr.mergedBy : pr.mergedBy?.login],
+    ...(pr.milestone ? [['GitHubのMilestone', pr.milestone]] : [])
+  ]);
+  const ai = pr.categories.includes('Close済み担当PR')
+    ? `<p>AI利用結果: <span data-ai-result="${pr.number}">${esc(spreadsheetAi(pr.number))}</span></p>` : '';
+  const timing = pr.durationSeconds == null ? '' : `<p>所要時間: ${duration(pr.durationSeconds)}（${pr.endSource === 'pr-merged' ? 'マージまで' : 'Closeまで'}）</p>`;
+  const startEnd = pr.startAt ? `<p class="meta">開始: ${esc(pr.startAt)}（${esc(pr.startSource)}）／終了: ${esc(pr.endAt)}（${esc(pr.endSource)}）</p>` : '';
+  const body = `<div class="record-content">${fields}<div class="related-items"><h5>関連Issue</h5>${related}</div>${ai}${timing}${startEnd}${editable ? aiControls(pr) : ''}${collapsible ? `<p class="description">${esc(pr.body || '本文なし')}</p>` : ''}</div>`;
+  return collapsible
+    ? `<details class="list-item" id="${id}"><summary>${heading} · assignee: ${esc(ownerNames(pr))} · milestone: ${esc(pr.milestone || '未設定')} · 作成から${age(pr.createdAt)}</summary>${body}</details>`
+    : `<article class="list-item" id="${id}"><h4 class="title is-6">${heading}</h4>${body}</article>`;
+}
+function issueRecord(issue, items, {id, collapsible = false} = {}) {
+  const heading = link(issue.url, `Issue #${issue.number} ${issue.title}`);
+  const fields = issueFields(issue, items.relatedPrs, items.prs);
+  const milestone = issue.milestone ? `<p class="meta">GitHubのMilestone: ${esc(issue.milestone)}</p>` : '';
+  const body = `<div class="record-content">${fields}${milestone}<p class="description">${esc(issue.body || '本文なし')}</p></div>`;
+  return collapsible
+    ? `<details class="list-item" id="${id}"><summary>${heading} · assignee: ${esc(assigneeNames(issue).join('、') || '未設定')} · milestone: ${esc(issue.milestone || '未設定')} · 作成から${age(issue.createdAt)}</summary>${body}</details>`
+    : `<article class="list-item" id="${id}"><h4 class="title is-6">${heading}</h4>${body}</article>`;
+}
 function renderDetails() {
+  const items = reportItems();
   q('#details').innerHTML = '<h2 class="title is-3 section-title">詳細表示</h2>' +
-    section('closed-prs', 'Close済み担当PR', report.closedPullRequests, pr => {
-      const issues = pr.relatedIssues || [];
-      return `<article class="list-item" id="pr-${pr.number}"><h4 class="title is-6">${link(pr.url, `#${pr.number} ${pr.title}`)}</h4><p>所要時間: ${duration(pr.durationSeconds)}（${pr.endSource === 'pr-merged' ? 'マージまで' : 'Closeまで'}）</p><p class="meta">開始: ${esc(pr.startAt)}（${esc(pr.startSource)}）／終了: ${esc(pr.endAt)}（${esc(pr.endSource)}）</p><p>関連Issue: ${issues.length ? issues.map(issue => link(issue.url, `[${String(issue.state).toLowerCase() === 'closed' ? 'Closed' : 'Open'}] #${issue.number} ${issue.title}`)).join('、') : 'なし'}</p>${aiControls(pr)}</article>`;
-    }) +
-    section('merged-by-student', '自分がマージしたPR', report.mergedByStudent, pr => `<div class="list-item">${link(pr.url, `#${pr.number} [${ownerNames(pr)}] ${pr.title}`)} <span class="meta">${esc(pr.mergedAt)}</span></div>`) +
-    section('manual-issues', '手動でCloseされたIssue', report.manuallyClosedIssues, issue => `<div class="list-item">${link(issue.url, `#${issue.number} ${issue.title}`)}<p class="description">${esc(issue.body || '')}</p></div>`) +
+    section('closed-prs', 'Close済み担当PR', report.closedPullRequests, pr => prRecord(items.prs.get(pr.number), items, {id: `pr-${pr.number}`, editable: true})) +
+    section('merged-by-student', '自分がマージしたPR', report.mergedByStudent, pr => prRecord(items.prs.get(pr.number), items, {id: `merged-pr-${pr.number}`})) +
+    section('manual-issues', '手動でCloseされたIssue', report.manuallyClosedIssues, issue => issueRecord(items.issues.get(issue.number), items, {id: `manual-issue-${issue.number}`})) +
     section('commits', 'コミット', report.commits, commit => `<div class="list-item">${link(commit.html_url, `${commit.sha?.slice(0, 8)} ${commit.message?.split('\n')[0] || ''}`)}</div>`) +
     section('comments', 'GitHubコメント', report.githubComments, comment => `<div class="list-item">${link(comment.html_url, comment.body?.slice(0, 160) || 'コメント')} <span class="meta">${esc(comment.created_at)}</span></div>`) +
     section('trouble', 'trouble report', report.troubleshooting, item => `<div class="list-item">${link(item.url, item.subject)} <span class="meta">${esc(item.at)}</span></div>`);
   q('#unfinished').innerHTML = '<h2 class="title is-3 section-title">未完了</h2><p class="meta">全Milestoneに属する全員のOpen項目です。経過時間はレポート生成時点の値です。</p>' +
-    section('open-prs', 'Open PR', report.openPullRequests, pr => `<details class="list-item"><summary>${link(pr.url, `#${pr.number} ${pr.title}`)} · assignee: ${esc(assigneeNames(pr).join('、') || '未設定')} · milestone: ${esc(pr.milestone || '未設定')} · 作成から${age(pr.createdAt)}</summary><p class="description">${esc(pr.body || '本文なし')}</p></details>`) +
-    section('open-issues', 'Open Issue', report.openIssues, issue => `<details class="list-item"><summary>${link(issue.url, `#${issue.number} ${issue.title}`)} · assignee: ${esc(assigneeNames(issue).join('、') || '未設定')} · milestone: ${esc(issue.milestone || '未設定')} · 作成から${age(issue.createdAt)}</summary><p class="description">${esc(issue.body || '本文なし')}</p></details>`);
+    section('open-prs', 'Open PR', report.openPullRequests, pr => prRecord(items.prs.get(pr.number), items, {id: `open-pr-${pr.number}`, collapsible: true})) +
+    section('open-issues', 'Open Issue', report.openIssues, issue => issueRecord(items.issues.get(issue.number), items, {id: `open-issue-${issue.number}`, collapsible: true}));
 }
 
 async function postJson(path, payload) {
@@ -233,17 +364,11 @@ preview.addEventListener('pointerleave', schedulePreviewHide);
 
 q('#report-select').addEventListener('change', event => { location.search = '?report=' + encodeURIComponent(event.target.value); });
 q('#copy-button').addEventListener('click', async () => {
-  const plain = overviewText(), html = overviewHtml();
   try {
-    if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
-      await navigator.clipboard.write([new ClipboardItem({'text/html': new Blob([html], {type: 'text/html'}), 'text/plain': new Blob([plain], {type: 'text/plain'})})]);
-    } else {
-      await navigator.clipboard.writeText(plain);
-    }
-    q('#copy-status').textContent = 'コピーしました。';
+    await navigator.clipboard.writeText(spreadsheetTsv());
+    q('#copy-status').textContent = 'タブ区切りの概要をコピーしました。';
   } catch (_) {
-    try { await navigator.clipboard.writeText(plain); q('#copy-status').textContent = 'URL付きテキストをコピーしました。'; }
-    catch (_) { q('#copy-status').textContent = 'コピーできませんでした。ブラウザのクリップボード権限を確認してください。'; }
+    q('#copy-status').textContent = 'コピーできませんでした。ブラウザのクリップボード権限を確認してください。';
   }
 });
 q('#dod-form-items').addEventListener('change', async event => {
@@ -292,6 +417,7 @@ async function saveAiControls(fieldset) {
     await postJson('/api/ai-usage', {pr: number, choices, other});
     report.aiUsage[number] = {choices, other};
     status.textContent = '保存しました。';
+    q('#details').querySelectorAll?.(`[data-ai-result="${number}"]`).forEach(label => { label.textContent = spreadsheetAi(number); });
     renderOverview();
   } catch (_) { status.textContent = '保存できませんでした。再試行してください。'; }
 }

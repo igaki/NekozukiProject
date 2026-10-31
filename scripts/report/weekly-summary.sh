@@ -191,6 +191,7 @@ while IFS= read -r pr_number; do
   jq -n --argjson pr "$pr" --argjson closingIssueNumbers "$closed_issue_numbers" --arg start "$pr_start" --arg source "$pr_start_source" --arg end "$pr_end" --arg seconds "$pr_seconds" '
     {number:$pr.number,title:$pr.title,url:$pr.url,body:$pr.body,createdAt:$pr.createdAt,
      closedAt:$pr.closedAt,mergedAt:$pr.mergedAt,mergedBy:$pr.mergedBy,
+     author:$pr.author.login,assignees:[$pr.assignees[]?.login],
      closingIssueNumbers:$closingIssueNumbers,startAt:$start,startSource:$source,
      endAt:$end,endSource:(if $pr.mergedAt != null then "pr-merged" else "pr-closed" end),
      durationSeconds:($seconds|tonumber?)}
@@ -234,7 +235,9 @@ while IFS= read -r issue_number; do
   start="$(jq -r '.created_at' <<<"$issue")"; end="$(jq -r '.closed_at' <<<"$issue")"
   seconds="$(duration_seconds "$start" "$end" || printf '')"
   jq -n --argjson issue "$issue" --arg start "$start" --arg end "$end" --arg seconds "$seconds" '
-    {number:$issue.number,title:$issue.title,url:$issue.html_url,body:($issue.body // ""),startAt:$start,endAt:$end,startSource:"issue-created",endSource:"issue-closed",durationSeconds:($seconds|tonumber?)}
+    {number:$issue.number,title:$issue.title,url:$issue.html_url,body:($issue.body // ""),
+     author:$issue.user.login,assignees:[$issue.assignees[]?.login],createdAt:$start,closedAt:$end,
+     startAt:$start,endAt:$end,startSource:"issue-created",endSource:"issue-closed",durationSeconds:($seconds|tonumber?)}
   ' >> "$TEMP_DIR/manually-closed-issues.jsonl"
 done < <(jq -r --arg student "$STUDENT" --arg milestone "$MILESTONE" '
   .[] | select(.closed_at != null and .milestone.title == $milestone) |
@@ -282,21 +285,26 @@ jq -n \
        ($pr.body // "" | match("(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?|references?)\\s+(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[0-9]+(?:\\s*(?:,|;|and|&)\\s*(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[0-9]+)*"; "g") |
          .string | scan("(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#[0-9]+") |
          select(startswith("#") or startswith($repository + "#")) | split("#")[1] | tonumber) ] | unique);
+  def relatedIssues($pr): [referencedNumbers($pr)[] as $number |
+    allIssues[] | select(.number == $number) |
+    {number,title,url:.html_url,state,author:.user.login,assignees:[.assignees[]?.login],
+     createdAt:.created_at,closedAt:.closed_at,milestone:(.milestone.title // null)}];
   {
     schemaVersion: 4, repository: $repository, generatedAt: $generatedAt, milestone: $milestone, student: $student,
-    closedPullRequests: (closedPrs | map(. as $pr | . + {relatedIssues: [referencedNumbers($pr)[] as $number |
-      allIssues[] | select(.number == $number) | {number,title,url:.html_url,state,assignees:[.assignees[]?.login],milestone:(.milestone.title // null)}]})),
+    closedPullRequests: (closedPrs | map(. as $pr | . + {relatedIssues: relatedIssues($pr)})),
     completedIssues: completed, closedPrsWithoutIssue: withoutIssue, manuallyClosedIssues: manual,
     pullRequests: targetPrs,
     mergedByStudent: (milestonePrs | map(select(.mergedBy.login == $student) |
-      {number,title,url,mergedAt,assignees:[.assignees[]?.login],author:.author.login})),
+      . as $pr | {number,title,url,createdAt,closedAt,mergedAt,mergedBy:.mergedBy.login,
+        assignees:[.assignees[]?.login],author:.author.login,relatedIssues:relatedIssues($pr)})),
     dodIssues: (milestoneIssues | map(select(any(.assignees[]?; .login == $student)) |
       {number,title,url:.html_url,createdAt:.created_at,closedAt:.closed_at})),
     dodPullRequests: (milestonePrs | map(select(responsible) |
       {number,title,url,createdAt,closedAt})),
     dodCreatedPullRequests: (targetPrs | map(select(.author.login == $student) | {number,title,url,createdAt,closedAt})),
-    openPullRequests: (allPrs | map(select(.state == "OPEN") |
-      {number,title,url,body,createdAt,author,assignees:[.assignees[]?.login],milestone:(.milestone.title // null)})),
+    openPullRequests: (allPrs | map(select(.state == "OPEN") | . as $pr |
+      {number,title,url,body,createdAt,author,assignees:[.assignees[]?.login],
+       milestone:(.milestone.title // null),relatedIssues:relatedIssues($pr)})),
     openIssues: (allIssues | map(select(.state == "open") |
       {number,title,url:.html_url,body,createdAt:.created_at,author:.user,assignees:[.assignees[]?.login],milestone:(.milestone.title // null)})),
     commits: (targetPrs | map(select(.author.login == $student) | .commits) | add // [] | unique_by(.sha)),
@@ -359,6 +367,10 @@ body{background:linear-gradient(135deg,#071426,#102a4c 55%,#16142d);min-height:1
 .detail-card{margin-top:1rem}
 .detail-card .title{margin-bottom:.45rem}
 .list-item,.dod-item{border-top:1px solid #526b90;padding:1rem 0}
+.detail-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));gap:.5rem 1rem;margin:.75rem 0}
+.detail-fields dt{color:var(--muted);font-size:.8rem}.detail-fields dd{overflow-wrap:anywhere}
+.related-items{margin:.75rem 0}.related-items h5{font-weight:700}
+.related-record{margin:.5rem 0;padding:.75rem;background:var(--surface-2);border-radius:.35rem}
 .description{white-space:pre-wrap;margin-top:.6rem;max-height:16rem;overflow:auto}
 .ai-controls{padding:.8rem;margin-top:.8rem;border:1px solid #526b90;border-radius:.4rem}
 .ai-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:.5rem}
@@ -377,7 +389,7 @@ details summary{cursor:pointer;color:var(--text)}
 <section class="hero"><div class="hero-body"><div class="container"><h1 class="title">Weekly Engineering Review</h1><p class="subtitle" id="report-meta"></p></div></div></section>
 <main class="section"><div class="container">
 <section class="box summary-card"><label class="label" for="report-select">表示する記録</label><div class="select is-fullwidth"><select id="report-select">__REPORT_OPTIONS__</select></div></section>
-<section class="box summary-card" id="overview"><h2 class="title is-3">全体概要</h2><div class="overview-metrics" id="overview-metrics"></div><p>概要をコピーすると、対応するアプリではレイアウトとGitHubリンクを保持して貼り付けられます。</p><div id="overview-text"></div><button class="button is-info" id="copy-button" type="button">概要をコピー</button><span id="copy-status" aria-live="polite"></span><div id="ai-warning" aria-live="polite"></div><div id="dod-warning" aria-live="polite"></div><nav class="summary-links" aria-label="入力欄へのリンク"><a class="summary-link" href="#closed-prs">PRごとのAI利用へ</a><a class="summary-link" href="#dod-form">DoD自己評価へ</a></nav></section>
+<section class="box summary-card" id="overview"><h2 class="title is-3">全体概要</h2><div class="overview-metrics" id="overview-metrics"></div><p>概要をコピーすると、Googleスプレッドシートへ貼り付けられるタブ区切りテキストをコピーします。</p><div id="overview-text"></div><button class="button is-info" id="copy-button" type="button">概要をコピー</button><span id="copy-status" aria-live="polite"></span><div id="ai-warning" aria-live="polite"></div><div id="dod-warning" aria-live="polite"></div><nav class="summary-links" aria-label="入力欄へのリンク"><a class="summary-link" href="#closed-prs">PRごとのAI利用へ</a><a class="summary-link" href="#dod-form">DoD自己評価へ</a></nav></section>
 <section class="box summary-card" id="dod-form"><h2 class="title is-3">DoD自己評価</h2><p>担当Issueは自分がAssigneeのものです。担当PRはAssigneeがいればその中に自分が含まれるもの、いなければ自分が作成したものです。各項目を選択すると表示中のJSONへ保存されます。</p><div id="dod-form-items"></div></section>
 <div id="details"></div>
 <div id="unfinished"></div>

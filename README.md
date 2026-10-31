@@ -566,7 +566,9 @@ bash scripts/report/weekly-summary.sh --milestone lec07 --student fukuyasu
 
 `--student` を省略すると現在ログイン中のGitHubユーザーを対象にします．日時による絞り込みは行いません．担当PRは，assigneeが設定されていれば自分がassigneeであるPR，未設定なら自分が作成したPRです．前回入力したAI利用は同じClose済み担当PRについて引き継ぎ，DoD自己評価は対象Issue・PRの集合が変わらない場合に引き継ぎます．以前の形式のJSONから回答は引き継ぎません．
 
-ページ上部の「表示する記録」でMilestone別の JSON を切り替えられます．全体概要の「概要をコピー」はレイアウトとGitHubリンクを含むHTML，URL付きテキストをコピーし，貼り付け先が対応する形式で表示します．全体概要ではOpen PR・Open Issueの件数をtrouble reportの後に表示します．Close済み担当PRの下には関連Issueと現在のOpen／Closedを表示します．DoD自己評価とClose済み担当PRごとのAI利用は，選択内容が表示中の JSON に保存されます．未完了エリアにはMilestoneや担当者を問わず全Open PR・Issueを表示します．コミットは自分が作成した対象MilestoneのPRのもの，コメントは対象Issue・PRに付いたものを集計します．Milestoneに紐付かないローカルのtrouble reportは集計対象外です．ページを閉じるとローカルサーバは約 30 秒後に終了します．
+ページ上部の「表示する記録」でMilestone別の JSON を切り替えられます．全体概要の「概要をコピー」は，Googleスプレッドシートに貼り付けられるタブ区切りテキストをコピーします．学生ごとに1つのスプレッドシートを用意し，lec06から順に最終行の下へ貼り付けてください．各Milestoneの先頭に9つの数値集計行，次にPR・Issueの明細，最後に独立したDoD自己評価6行が入ります．行種別「集計」とMilestoneで絞り込めるため，明細の行数が変わっても件数を分析できます．同じMilestoneを再集計して貼り直す場合は，古いMilestoneの行を削除してから貼り付けてください．全体概要ではOpen PR・Open Issueの件数をtrouble reportの後に表示します．Close済み担当PRの下には関連Issueと現在のOpen／Closedを表示します．DoD自己評価とClose済み担当PRごとのAI利用は，選択内容が表示中の JSON に保存されます．未完了エリアにはMilestoneや担当者を問わず全Open PR・Issueを表示します．コミットは自分が作成した対象MilestoneのPRのもの，コメントは対象Issue・PRに付いたものを集計します．Milestoneに紐付かないローカルのtrouble reportは集計対象外です．ページを閉じるとローカルサーバは約 30 秒後に終了します．
+
+詳細表示はClose済み担当PR，自分がマージしたPR，手動でCloseされたIssue，コミット，GitHubコメント，trouble reportの順です．PR・Issueには主担当，作成者，作成日時など，コピーする明細と同じ項目を表示し，関連Issueにも作成者や日時を表示します．ページ末尾の未完了エリアでは，全Open PR・Issueの担当者，作成者，作成日時，関連Issue・PRを確認できます．
 
 Issue・PRのGitHubリンクにマウスを重ねると，本文やコメント・レビューをローカルのオーバーレイで確認できます．同じリンクの内容はサーバ稼働中に再利用し，サーバ終了時にメモリから全件破棄します．リンクをクリックするとGitHubの元ページを開けます．DoD自己評価の対象リンクは `Issue#5`，`PR#8` のように種類を表示します．
 
@@ -660,7 +662,7 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/fukuyasu/lec
 | 初期化 | `scripts/harness/init-project.sh` | SSH remote，GitHub CLI 認証，Collaborator 一覧，Spring Bootアプリの自動検出，Gradleテストを検査し，`repository_name`・`app_name`・`app_dir` と開発者一覧を更新する．Collaborator が0人なら停止する． |
 | 自動テスト | `.github/workflows/ci.yml` | Pull Request 作成時と `main` への push 時に，`docs/project.md` の `app_dir` を読み，そのフォルダで `./gradlew test` を実行する． |
 | テンプレート同期 | `scripts/harness/generate-template-harness.sh` | `docs/template-constraints.md` の `HARNESS-CONFIG` から，Issue Form，PR テンプレート，PR 本文検査 Action，`scripts/lib/markdown-format.sh` を生成する． |
-| 週次振り返りの集計 | `scripts/report/weekly-summary.sh`，`scripts/report/weekly-summary-ui.js`，`scripts/report/server-weekly-summary.ps1` | 既存Milestoneを指定し，未割当Issue・PRを警告しながら集計する．Milestone別JSONをバックアップして差し替え，リンク付き概要のHTMLを生成する．DoD自己評価とClose済み担当PRごとのAI利用をJSONへ保存する． |
+| 週次振り返りの集計 | `scripts/report/weekly-summary.sh`，`scripts/report/weekly-summary-ui.js`，`scripts/report/server-weekly-summary.ps1` | 既存Milestoneを指定し，未割当Issue・PRを警告しながら集計する．Milestone別JSONをバックアップして差し替え，閲覧用HTMLとスプレッドシート貼り付け用のタブ区切り概要を生成する．DoD自己評価とClose済み担当PRごとのAI利用をJSONへ保存する． |
 
 ### GitHub リポジトリ設定による main ブランチ保護
 

@@ -40,6 +40,7 @@ try {
   write('pulls.json', pulls);
   pulls[0].body = 'Closes #1\nRefs example/team#2, #3';
   pulls[1].body = 'Refs #5';
+  pulls[2].body = 'Refs #4';
   write('pulls.json', pulls);
   write('pr10.json', {...pulls[0], closingIssuesReferences: [{number: 1}]});
   write('pr11.json', {...pulls[1], closingIssuesReferences: [{number: 5}]});
@@ -136,6 +137,7 @@ esac
   assert.equal(data.summary.githubCommentCount, 1);
   assert.equal(data.summary.troubleshootingCount, 0);
   assert.deepEqual(data.openPullRequests.map(item => item.number), [12, 13]);
+  assert.deepEqual(data.openPullRequests[0].relatedIssues.map(item => item.number), [4]);
   assert.deepEqual(data.openIssues.map(item => item.number), [3, 4]);
   assert.deepEqual(data.dodIssues.map(item => item.number), [1, 2, 5]);
   assert.deepEqual(data.dodPullRequests.map(item => item.number), [10, 11, 14]);
@@ -145,8 +147,14 @@ esac
   assert.deepEqual(data.closedPullRequests[1].relatedIssues.map(item => item.number), [5]);
   assert.deepEqual(data.closedPullRequests[2].relatedIssues, []);
   assert.equal(data.closedPullRequests[0].durationSeconds, 82800);
+  assert.equal(data.closedPullRequests[1].author, 'bob');
+  assert.deepEqual(data.closedPullRequests[1].assignees, ['alice']);
+  assert.equal(data.closedPullRequests[0].relatedIssues[1].author, 'bob');
+  assert.equal(data.manuallyClosedIssues[0].author, 'bob');
+  assert.deepEqual(data.manuallyClosedIssues[0].assignees, ['alice']);
+  assert.equal(data.mergedByStudent[0].createdAt, '2026-10-02T00:00:00Z');
   const elements = new Map();
-  let copiedItems;
+  let copiedText;
   const document = {handlers: {}, addEventListener(type, handler) { this.handlers[type] = handler; }, querySelector(selector) {
     if (!elements.has(selector)) elements.set(selector, {innerHTML: '', textContent: '', value: '', handlers: {}, style: {}, hidden: selector === '#github-preview',
       addEventListener(type, handler) { this.handlers[type] = handler; }});
@@ -157,13 +165,59 @@ esac
   vm.runInNewContext(fs.readFileSync(path.join(source, 'weekly-summary-ui.js'), 'utf8'), {
     report: data, document, location: {}, Blob, window: {innerWidth: 1200, innerHeight: 800}, setTimeout, clearTimeout,
     ClipboardItem: class { constructor(items) { this.items = items; } },
-    navigator: {clipboard: {write: async items => { copiedItems = items; }}},
+    navigator: {clipboard: {writeText: async value => { copiedText = value; }, write: () => { throw new Error('HTML clipboard must not be used'); }}},
     fetch: url => Promise.resolve(String(url).startsWith('/api/preview') ? {ok: true, json: async () => previewItem} : {ok: true}), setInterval() {}
   });
   await elements.get('#copy-button').handlers.click();
-  assert.match(await copiedItems[0].items['text/html'].text(), /href="https:\/\/github\.com\/example\/team\/pull\/10"/);
-  assert.match(await copiedItems[0].items['text/html'].text(), /padding-left:48px/);
-  assert.match(await copiedItems[0].items['text/plain'].text(), /https:\/\/github\.com\/example\/team\/issues\/3/);
+  const copiedRows = copiedText.split('\n').map(line => line.split('\t'));
+  assert.ok(copiedRows.every(row => row.length === 14), 'every spreadsheet row must have 14 columns');
+  assert.deepEqual(copiedRows[0], ['行種別', 'Milestone', '指標・区分', '件数/番号', 'タイトル・設問', 'GitHub URL',
+    '主担当', '作成者', '作成日時', 'Close日時', 'マージ日時', 'マージ者', '関連Issue・PR', 'AI利用結果/DoD回答']);
+  const summaryRows = copiedRows.filter(row => row[0] === '集計');
+  assert.deepEqual(summaryRows.map(row => [row[2], Number(row[3])]), [
+    ['01 Close済み担当PR', 3], ['02 うちマージ済み', 2], ['03 自分がマージしたPR', 1],
+    ['04 手動Close Issue', 1], ['05 総コミット', 1], ['06 総コメント', 1],
+    ['07 trouble report', 0], ['08 全体のOpen PR', 2], ['09 全体のOpen Issue', 2]
+  ]);
+  assert.ok(copiedRows.slice(1, 10).every(row => row[0] === '集計'));
+  assert.ok(copiedRows.slice(-6).every(row => row[0] === 'DoD'));
+  const pr11Row = copiedRows.find(row => row[0] === 'PR' && row[3] === '11');
+  assert.equal(pr11Row[2], 'Close済み担当PR・自分がマージしたPR');
+  assert.equal(pr11Row[6], 'alice');
+  assert.equal(pr11Row[7], 'bob');
+  assert.equal(pr11Row[8], '2026/10/02 09:00');
+  assert.equal(pr11Row[10], '2026/10/04 09:00');
+  assert.equal(pr11Row[11], 'alice');
+  assert.equal(pr11Row[12], 'Issue #5');
+  assert.equal(pr11Row[13], '未選択');
+  const issue2Row = copiedRows.find(row => row[0] === 'Issue' && row[3] === '2');
+  assert.equal(issue2Row[2], 'PR関連Issue・手動Close Issue');
+  assert.equal(issue2Row[6], 'alice');
+  assert.equal(issue2Row[7], 'bob');
+  assert.equal(issue2Row[12], 'PR #10');
+  assert.equal(copiedRows.filter(row => row[0] === 'Issue' && row[3] === '3').length, 1);
+  const issue4Row = copiedRows.find(row => row[0] === 'Issue' && row[3] === '4');
+  assert.equal(issue4Row[2], 'PR関連Issue・全体のOpen Issue');
+  assert.equal(issue4Row[12], 'PR #12');
+  assert.equal(copiedRows.find(row => row[0] === 'PR' && row[3] === '12')[12], 'Issue #4');
+  assert.equal(copiedRows.find(row => row[0] === 'PR' && row[3] === '13')[1], 'lec06');
+  assert.deepEqual(copiedRows.slice(-6).map(row => row[3]), ['1', '2', '3', '4', '5', '6']);
+  assert.equal(copiedRows.at(-1)[13], '未選択');
+  data.aiUsage['10'] = {choices: ['plan-issues', 'debug'], other: ''};
+  data.dodAssessment['1'] = {choice: 'correct'};
+  await elements.get('#copy-button').handlers.click();
+  const answeredRows = copiedText.split('\n').map(line => line.split('\t'));
+  assert.equal(answeredRows.find(row => row[0] === 'PR' && row[3] === '10')[13], 'plan-issues; debug');
+  assert.equal(answeredRows.find(row => row[0] === 'DoD' && row[3] === '1')[13], '正しく設定されている');
+  delete data.aiUsage['10'];
+  delete data.dodAssessment['1'];
+  const originalTitle = data.closedPullRequests[0].title;
+  data.closedPullRequests[0].title = '=HYPERLINK("unsafe")\t危険\n続き';
+  await elements.get('#copy-button').handlers.click();
+  const escapedRows = copiedText.split('\n').map(line => line.split('\t'));
+  assert.ok(escapedRows.every(row => row.length === 14));
+  assert.match(escapedRows.find(row => row[0] === 'PR' && row[3] === '10')[4], /^'=HYPERLINK\("unsafe"\) 危険 続き$/);
+  data.closedPullRequests[0].title = originalTitle;
   assert.match(elements.get('#overview-text').innerHTML, /Close済み担当PR: 3件/);
   assert.match(elements.get('#overview-text').innerHTML, /\[Open\]Issue #3/);
   assert.match(elements.get('#overview-text').innerHTML, /\[NotMerged\]PR #14/);
@@ -207,6 +261,48 @@ esac
   assert.match(elements.get('#details').innerHTML, /href="https:\/\/github\.com\/example\/team\/commit\/abcdef123456"/);
   assert.match(elements.get('#details').innerHTML, /abcdef12 実装/);
   assert.match(elements.get('#unfinished').innerHTML, /他学生の未完了Issue/);
+  const detailHtml = elements.get('#details').innerHTML;
+  const detailSection = (start, end) => detailHtml.slice(detailHtml.indexOf(`id="${start}"`), detailHtml.indexOf(`id="${end}"`));
+  for (const [first, second] of [['closed-prs', 'merged-by-student'], ['merged-by-student', 'manual-issues'],
+    ['manual-issues', 'commits'], ['commits', 'comments'], ['comments', 'trouble']]) {
+    assert.ok(detailHtml.indexOf(`id="${first}"`) < detailHtml.indexOf(`id="${second}"`));
+  }
+  assert.doesNotMatch(detailHtml, /id="overview-metrics"|id="dod-item-/);
+  const closedDetails = detailSection('closed-prs', 'merged-by-student');
+  assert.match(closedDetails, /id="pr-11"/);
+  assert.match(closedDetails, /区分<\/dt><dd>Close済み担当PR・自分がマージしたPR<\/dd>/);
+  assert.match(closedDetails, /作成日時（日本時間）<\/dt><dd>2026\/10\/02 09:00<\/dd>/);
+  assert.match(closedDetails, /マージ日時（日本時間）<\/dt><dd>2026\/10\/04 09:00<\/dd>/);
+  assert.match(closedDetails, /AI利用結果: <span data-ai-result="11">未選択<\/span>/);
+  const issue2Details = closedDetails.slice(closedDetails.indexOf('https://github.com/example/team/issues/2'));
+  assert.match(issue2Details.slice(0, 1200), /主担当<\/dt><dd>alice<\/dd>/);
+  assert.match(issue2Details.slice(0, 1200), /作成者<\/dt><dd>bob<\/dd>/);
+  assert.match(issue2Details.slice(0, 1200), /作成日時（日本時間）<\/dt><dd>2026\/10\/02 09:00<\/dd>/);
+  const mergedDetails = detailSection('merged-by-student', 'manual-issues');
+  assert.match(mergedDetails, /id="merged-pr-11"/);
+  assert.match(mergedDetails, /主担当<\/dt><dd>alice<\/dd>/);
+  assert.match(mergedDetails, /作成者<\/dt><dd>bob<\/dd>/);
+  assert.match(mergedDetails, /関連Issue[\s\S]*Issue #5/);
+  const manualDetails = detailSection('manual-issues', 'commits');
+  assert.match(manualDetails, /id="manual-issue-2"/);
+  assert.match(manualDetails, /作成者<\/dt><dd>bob<\/dd>/);
+  assert.match(manualDetails, /手動Issueの説明/);
+  const unfinishedHtml = elements.get('#unfinished').innerHTML;
+  assert.match(unfinishedHtml, /id="open-pr-12"/);
+  assert.match(unfinishedHtml, /id="open-issue-4"/);
+  assert.match(unfinishedHtml, /作成者<\/dt><dd>alice<\/dd>/);
+  assert.match(unfinishedHtml, /作成日時（日本時間）<\/dt><dd>2026\/10\/02 09:00<\/dd>/);
+  assert.match(unfinishedHtml, /関連PR<\/dt><dd><a href="https:\/\/github\.com\/example\/team\/pull\/12"/);
+  assert.match(unfinishedHtml, /GitHubのMilestone: lec07/);
+  const aiResultNode = {textContent: '未選択'};
+  elements.get('#details').querySelectorAll = selector => selector === '[data-ai-result="10"]' ? [aiResultNode] : [];
+  const aiStatus = {textContent: ''};
+  const aiFieldset = {dataset: {pr: '10'}, querySelectorAll: () => [{value: 'debug'}],
+    querySelector: selector => selector === '[data-other]' ? {value: ''} : aiStatus};
+  elements.get('#details').handlers.change({target: {type: 'text', closest: () => aiFieldset}});
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(aiStatus.textContent, '保存しました。');
+  assert.equal(aiResultNode.textContent, 'debug');
   const anchor = {dataset: {previewKind: 'issue', previewNumber: '1'}, getBoundingClientRect: () => ({right: 100, top: 50}),
     closest: () => anchor, contains: () => false};
   document.handlers.pointerover({target: anchor});
@@ -242,6 +338,9 @@ esac
   const htmlPath = path.join(repo, 'docs', 'weekly-summary_alice.html');
   const dataPath = path.join(dataDir, firstFile);
   const generatedHtml = fs.readFileSync(htmlPath, 'utf8');
+  assert.ok(generatedHtml.indexOf('id="overview"') < generatedHtml.indexOf('id="dod-form"'));
+  assert.ok(generatedHtml.indexOf('id="dod-form"') < generatedHtml.indexOf('id="details"'));
+  assert.ok(generatedHtml.indexOf('id="details"') < generatedHtml.indexOf('id="unfinished"'));
   assert.match(generatedHtml, /id="github-preview"/);
   assert.match(generatedHtml, /id="dod-warning"/);
   assert.match(generatedHtml, /href="#closed-prs">PRごとのAI利用へ/);
