@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}">
+  <meta name="_csrf_header" th:content="${_csrf.headerName}">
+  <title>共有ゲーム - Nekoselect</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background: #f5f7fb;
+      color: #20283a;
+    }
+
+    main {
+      max-width: 760px;
+      margin: 2rem auto;
+      padding: 1.5rem;
+      background: white;
+      border-radius: 1rem;
+    }
+
+    #game-status {
+      padding: 1rem;
+      background: #eef4ff;
+      border-radius: .75rem;
+      font-weight: 700;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .75rem;
+      margin: 1.5rem 0;
+    }
+
+    .tile {
+      min-height: 5rem;
+      border: 2px solid #d5dceb;
+      border-radius: .75rem;
+      background: #fff;
+      font-size: 1.25rem;
+      cursor: pointer;
+    }
+
+    .tile:hover:not(:disabled) {
+      border-color: #536dfe;
+      background: #f2f4ff;
+    }
+
+    .tile:disabled {
+      cursor: default;
+      opacity: .7;
+    }
+
+    @media (max-width: 520px) {
+      #board {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main id="game"
+    th:attr="data-state-url=@{/match-room/{id}/game/state(id=${roomId})},data-click-base=@{/match-room/{id}/game/tiles(id=${roomId})}">
+    <h1 th:text="'ルーム ' + ${roomId} + ' のゲーム'"></h1>
+    <p id="game-status" role="status" aria-live="polite"
+      th:text="${game.participantCount < 2 ? '参加者が2人以上になるまで開始を待っています。' : '準備中: ' + game.readyCount + ' / ' + game.participantCount + ' 人がゲーム画面を開きました。'}">
+    </p>
+    <p id="click-feedback" aria-live="polite"></p>
+    <div id="board" aria-label="共有ゲーム盤面">
+      <button th:each="tile : ${game.tiles}" type="button" class="tile" disabled
+        th:text="${tile.type == null ? '？' : (tile.type == T(oit.is.nekozuki.nekoselect.service.SharedGameService.TileType).CAT ? 'ねこ' : 'ぬこ')}"
+        th:attr="data-tile-id=${tile.id}"></button>
+    </div>
+    <p><a th:href="@{/match-room/{id}(id=${roomId})}">ルームに戻る</a></p>
+    <script th:inline="javascript">
+      const gameRoot = document.querySelector("#game");
+      const statusElement = document.querySelector("#game-status");
+      const feedbackElement = document.querySelector("#click-feedback");
+      const boardElement = document.querySelector("#board");
+      const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+      const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+      const pendingClicks = new Set();
+      let refreshing = false;
+      let refreshQueued = false;
+
+      function render(game) {
+        if (game.phase === "WAITING_FOR_PLAYERS") {
+          statusElement.textContent = game.participantCount < 2
+            ? "参加者が2人以上になるまで開始を待っています。"
+            : `準備中: ${game.readyCount} / ${game.participantCount} 人がゲーム画面を開きました。`;
+        } else if (game.phase === "COUNTDOWN") {
+          const seconds = Math.max(0, Math.ceil((new Date(game.startsAt).getTime() - Date.now()) / 1000));
+          statusElement.textContent = `全員の準備ができました。${seconds} 秒後に開始します。`;
+        } else if (game.phase === "PLAYING") {
+          statusElement.textContent = `ゲーム中 — 残りの「ねこ」: ${game.remainingCats}`;
+        } else {
+          statusElement.textContent = `ゲーム終了 — あなたは${game.result}です。負け: ${game.losers.join("、") || "なし"}`;
+        }
+
+        const existingButtons = new Map(
+          Array.from(boardElement.querySelectorAll("button.tile"), button => [button.dataset.tileId, button])
+        );
+        const orderedButtons = [];
+        for (const tile of game.tiles) {
+          let button = existingButtons.get(tile.id);
+          if (button) {
+            existingButtons.delete(tile.id);
+          } else {
+            button = document.createElement("button");
+            button.type = "button";
+            button.className = "tile";
+            button.dataset.tileId = tile.id;
+          }
+          button.textContent = tile.type === null ? "？" : (tile.type === "CAT" ? "ねこ" : "ぬこ");
+          if (tile.claimedBy) {
+            button.textContent += `（${tile.claimedBy}が取得）`;
+          }
+          button.disabled = game.phase !== "PLAYING" || Boolean(tile.claimedBy) || pendingClicks.has(tile.id);
+          orderedButtons.push(button);
+        }
+
+        for (const staleButton of existingButtons.values()) {
+          staleButton.remove();
+        }
+        orderedButtons.forEach((button, index) => {
+          const currentButton = boardElement.children[index];
+          if (currentButton !== button) {
+            boardElement.insertBefore(button, currentButton || null);
+          }
+        });
+      }
+
+      boardElement.addEventListener("click", event => {
+        const button = event.target.closest("button.tile");
+        if (button && boardElement.contains(button) && !button.disabled) {
+          claimTile(button.dataset.tileId);
+        }
+      });
+
+      async function refresh() {
+        if (refreshing) {
+          refreshQueued = true;
+          return;
+        }
+        refreshing = true;
+        try {
+          const response = await fetch(gameRoot.dataset.stateUrl, { cache: "no-store" });
+          if (response.ok) render(await response.json());
+        } finally {
+          refreshing = false;
+          if (refreshQueued) {
+            refreshQueued = false;
+            void refresh();
+          }
+        }
+      }
+
+      async function claimTile(tileId) {
+        if (pendingClicks.has(tileId)) return;
+        pendingClicks.add(tileId);
+        const tileButton = Array.from(boardElement.querySelectorAll("button.tile"))
+          .find(button => button.dataset.tileId === tileId);
+        if (tileButton) tileButton.disabled = true;
+        feedbackElement.textContent = "";
+        try {
+          const response = await fetch(`${gameRoot.dataset.clickBase}/${tileId}/click`, {
+            method: "POST",
+            headers: { [csrfHeader]: csrfToken }
+          });
+          if (!response.ok) {
+            feedbackElement.textContent = "クリックを処理できませんでした。状態を更新します。";
+            return;
+          }
+          const result = await response.json();
+          const messages = {
+            CLAIMED: "「ねこ」を取得しました。",
+            ALREADY_CLAIMED: "この「ねこ」は他のプレイヤーが取得済みです。",
+            MISS: "「ぬこ」でした。ペナルティはありません。",
+            GAME_NOT_ACTIVE: "現在クリックできません。",
+            NOT_FOUND: "対象が見つかりません。"
+          };
+          feedbackElement.textContent = messages[result.outcome] || "";
+          render(result.game);
+        } catch (error) {
+          feedbackElement.textContent = "通信に失敗しました。接続を確認して再度お試しください。";
+        } finally {
+          pendingClicks.delete(tileId);
+          await refresh();
+        }
+      }
+
+      refresh();
+      window.setInterval(refresh, 300);
+    </script>
+  </main>
+</body>
+
+</html>
