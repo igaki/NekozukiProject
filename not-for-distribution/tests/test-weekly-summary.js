@@ -457,13 +457,26 @@ switch ($endpoint) {
   assert.deepEqual(bobData.dodIssues.map(item => item.number), [3]);
   assert.deepEqual(bobData.dodPullRequests.map(item => item.number), [15]);
   assert.deepEqual(bobData.dodCreatedPullRequests.map(item => item.number), [11]);
-  pulls[3].milestone = null;
-  write('pulls.json', pulls);
-  const warnedRun = spawnSync(bash, ['-lc', command], {cwd: repo, encoding: 'utf8', timeout: 120000});
-  if (warnedRun.status !== 0) throw new Error(`unassigned milestone report failed:\n${warnedRun.stdout}\n${warnedRun.stderr}`);
-  assert.match(warnedRun.stderr, /Milestone未割当/);
-  assert.match(warnedRun.stderr, /PR #13/);
-  assert.equal(JSON.parse(fs.readFileSync(dataPath, 'utf8')).openPullRequests.find(pr => pr.number === 13).milestone, null);
+  for (const kind of ['PR', 'Issue']) {
+    if (kind === 'PR') {
+      pulls[3].milestone = null;
+      write('pulls.json', pulls);
+    } else {
+      issues[3].milestone = null;
+      write('issues.json', [issues]);
+    }
+    const rejected = spawnSync(bash, ['-lc', command], {cwd: repo, encoding: 'utf8', timeout: 120000});
+    assert.notEqual(rejected.status, 0, `${kind} without a milestone must stop the report`);
+    assert.match(rejected.stderr, /Milestone未割当/);
+    assert.match(rejected.stderr, new RegExp(`${kind} #(?:13|4) https://github\\.com/example/team/`));
+    assert.match(rejected.stderr, /再実行してください。既存のレポートは変更していません/);
+    assert.doesNotMatch(rejected.stderr, /対象学生のPR詳細を取得しています/);
+    assert.deepEqual(JSON.parse(fs.readFileSync(dataPath, 'utf8')), secondData);
+    assert.equal(fs.readFileSync(htmlPath, 'utf8'), htmlBeforeFailure);
+    assert.equal(fs.readdirSync(dataDir).filter(name => name.endsWith('.bak')).length, 1);
+    if (kind === 'PR') { pulls[3].milestone = {title: 'lec07'}; write('pulls.json', pulls); }
+    else { issues[3].milestone = {title: 'lec07'}; write('issues.json', [issues]); }
+  }
   process.stdout.write('weekly-summary fixture test passed\n');
 } finally {
   fs.rmSync(root, {recursive: true, force: true});
