@@ -563,7 +563,7 @@ bash scripts/report/weekly-summary.sh --milestone lec07 --student fukuyasu
 ### 警告・エラーが出た場合
 
 - **引数で指定したMilestoneがGitHub上にない場合**: 作成方法を案内して集計を停止します．GitHubの **Issues → Milestones → New milestone** で作成してから，同じコマンドを再実行してください．
-- **Milestone未割当のIssue・PRがある場合**: 指定したMilestone以外のものも含め，番号とURLを警告します．集計は続きますが，GitHub上で該当Issue・PRにMilestoneを設定し，同じコマンドを再実行してください．
+- **Milestone未割当のIssue・PRがある場合**: 指定したMilestone以外のものも含め，番号とURLを表示して集計を停止します．GitHub上で該当Issue・PRにMilestoneを設定し，同じコマンドを再実行してください．既存のJSON・HTMLは差し替えず，バックアップも作りません．
 - **複数のassigneeが設定されたIssue・PRがある場合**: 対象とassigneeを表示して集計を停止します．GitHub上で内容を一番よく理解している主担当だけを残し，同じコマンドを再実行してください．この場合，既存のJSON・HTMLは差し替えず，バックアップも作りません．
 
 PR・Issue・コミットの取得に失敗した場合も集計を停止し，既存のJSON・HTMLを差し替えず，バックアップも作りません．
@@ -670,7 +670,7 @@ bash scripts/report/open-weekly-summary.sh docs/weekly-summary-data/fukuyasu/lec
 | 初期化 | `scripts/harness/init-project.sh` | SSH remote，GitHub CLI 認証，Collaborator 一覧，Spring Bootアプリの自動検出，Gradleテストを検査し，`repository_name`・`app_name`・`app_dir` と開発者一覧を更新する．Collaborator が0人なら停止する． |
 | 自動テスト | `.github/workflows/ci.yml` | Pull Request 作成時と `main` への push 時に，`docs/project.md` の `app_dir` を読み，そのフォルダで `./gradlew test` を実行する． |
 | テンプレート同期 | `scripts/harness/generate-template-harness.sh` | `docs/template-constraints.md` の `HARNESS-CONFIG` から，Issue Form，PR テンプレート，PR 本文検査 Action，`scripts/lib/markdown-format.sh` を生成する． |
-| 週次振り返りの集計 | `scripts/report/weekly-summary.sh`，`scripts/report/weekly-summary-ui.js`，`scripts/report/server-weekly-summary.ps1` | 既存Milestoneを指定し，未割当Issue・PRを警告しながら集計する．複数assigneeのIssue・PRがあれば停止する．Milestone別JSONをバックアップして差し替え，閲覧用HTMLとスプレッドシート貼り付け用のタブ区切り概要を生成する．DoD自己評価とClose済み担当PRごとのAI利用をJSONへ保存する． |
+| 週次振り返りの集計 | `scripts/report/weekly-summary.sh`，`scripts/report/weekly-summary-ui.js`，`scripts/report/server-weekly-summary.ps1` | 既存Milestoneを指定し，未割当または複数assigneeのIssue・PRがあれば集計を停止する．Milestone別JSONをバックアップして差し替え，閲覧用HTMLとスプレッドシート貼り付け用のタブ区切り概要を生成する．DoD自己評価とClose済み担当PRごとのAI利用をJSONへ保存する． |
 
 ### GitHub リポジトリ設定による main ブランチ保護
 

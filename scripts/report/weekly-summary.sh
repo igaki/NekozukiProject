@@ -113,10 +113,11 @@ fi
 missing_prs="$(jq -r '.[] | select(.milestone == null) | "PR #\(.number) \(.url)"' "$TEMP_DIR/all-pulls.json")"
 missing_issues="$(jq -r '.[] | select(.milestone == null) | "Issue #\(.number) \(.html_url)"' "$TEMP_DIR/all-issues.json")"
 if [[ -n "$missing_prs" || -n "$missing_issues" ]]; then
-  echo '警告: Milestone未割当のIssue・PRがあります。' >&2
+  echo 'エラー: Milestone未割当のIssue・PRがあります。' >&2
   [[ -z "$missing_issues" ]] || printf '%s\n' "$missing_issues" >&2
   [[ -z "$missing_prs" ]] || printf '%s\n' "$missing_prs" >&2
-  echo "GitHubでMilestoneを設定し、bash scripts/report/weekly-summary.sh --milestone ${MILESTONE} --student ${STUDENT} を再実行してください。" >&2
+  echo "GitHubでMilestoneを設定し、bash scripts/report/weekly-summary.sh --milestone ${MILESTONE} --student ${STUDENT} を再実行してください。既存のレポートは変更していません。" >&2
+  exit 1
 fi
 
 echo '対象学生のPR詳細を取得しています…' >&2
