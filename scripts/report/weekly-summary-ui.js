@@ -13,6 +13,13 @@ const duration = seconds => {
   const days = Math.floor(total / 86400), hours = Math.floor(total % 86400 / 3600), minutes = Math.floor(total % 3600 / 60);
   return `${days ? days + '日' : ''}${hours ? hours + '時間' : ''}${minutes}分`;
 };
+const prDurationPeriod = pr => {
+  const start = ({reflog: 'ブランチ作成', 'first-commit': '最初のコミット',
+    'issue-created': 'Issue作成', 'pr-created': 'PR作成'})[pr.startSource] || '記録された開始時点';
+  const end = pr.endSource === 'pr-merged' ? 'マージ' : 'Close';
+  return `${start}から${end}まで`;
+};
+const prDurationText = pr => `${duration(pr.durationSeconds)}（${prDurationPeriod(pr)}）`;
 const age = createdAt => duration((Date.parse(report.generatedAt) - Date.parse(createdAt)) / 1000);
 const aiOptions = [
   ['none', '全く利用していない'],
@@ -33,18 +40,17 @@ const dodQuestions = [
   'すべてのCloseされた担当PRについて、実装者以外がAC/差分を確認してレビューを行い、マージしていますか？'
 ];
 const dodOptions = [
-  [['no_assigned', '自分の担当したPR/Issueが存在しない'], ['correct', '正しく設定されている'], ['incorrect', '正しく設定されていないものがある']],
-  [['no_assigned', '自分の担当したIssueが存在しない'], ['correct', '担当したすべてのIssueについて正しく設定されている'], ['incorrect', 'ACあるいは担当者が設定されていない担当Issueがある']],
-  [['no_commits', '全くコミットしていない'], ['no_direct_main', '一切mainブランチに直接コミットしていない'], ['direct_main', 'mainブランチに直接コミットしたものがある']],
-  [['no_assigned', '担当PRが存在しない'], ['complete', '「変更内容」と「AC確認結果」がすべてのClosedな担当PRに適切に記載されている'], ['missing', '記載が漏れている担当PRがある']],
-  [['no_assigned', '担当PRが存在しない'], ['complete', 'すべてのClosedな担当PRについて「関連Issue」が正しく記載されている'], ['missing', '記載が漏れているPRがある']],
-  [['no_merged', '担当PRが存在しないかマージが全く行われていない'], ['reviewed', 'すべてのClosedな担当PRについて実装者以外がレビュアーとしてAC/差分を確認して結果を記述している'], ['same_reviewer', 'PRの担当者とレビュアーが共通のPRがある'], ['no_review_result', 'PRの担当者とレビュアーは異なるがレビュー結果が記載されていない']]
+  [['correct', '正しく設定されている'], ['incorrect', '正しく設定されていないものがある'], ['no_assigned', '自分の担当したPR/Issueが存在しない']],
+  [['correct', '担当したすべてのIssueについて正しく設定されている'], ['incorrect', 'ACあるいは担当者が設定されていない担当Issueがある'], ['no_assigned', '自分の担当したIssueが存在しない']],
+  [['no_direct_main', '一切mainブランチに直接コミットしていない'], ['direct_main', 'mainブランチに直接コミットしたものがある']],
+  [['complete', '「変更内容」と「AC確認結果」がすべてのClosedな担当PRに適切に記載されている'], ['missing', '記載が漏れている担当PRがある'], ['no_assigned', '担当PRが存在しない']],
+  [['complete', 'すべてのClosedな担当PRについて「関連Issue」が正しく記載されている'], ['missing', '記載が漏れているPRがある'], ['no_assigned', '担当PRが存在しない']],
+  [['reviewed', 'すべてのClosedな担当PRについて実装者以外がレビュアーとしてAC/差分を確認して結果を記述している'], ['same_reviewer', 'PRの担当者とレビュアーが共通のPRがある'], ['no_review_result', 'PRの担当者とレビュアーは異なるがレビュー結果が記載されていない'], ['no_merged', '担当PRが存在しないか，担当PRがマージされていない']]
 ];
 const dodLabel = id => {
   const options = dodOptions[Number(id) - 1];
-  const answer = report.dodAssessment?.[id];
-  const keys = id === '6' ? answer?.choices || [] : answer?.choice ? [answer.choice] : [];
-  return keys.map(key => options.find(([value]) => value === key)?.[1] || key).join('、') || '未選択';
+  const choice = report.dodAssessment?.[id]?.choice;
+  return options.find(([value]) => value === choice)?.[1] || '未選択';
 };
 const aiLabel = number => {
   const answer = report.aiUsage?.[String(number)];
@@ -107,7 +113,7 @@ function reportItems() {
 }
 function spreadsheetTsv() {
   const headers = ['行種別', 'Milestone', '指標・区分', '件数/番号', 'タイトル・設問', 'GitHub URL',
-    '主担当', '作成者', '作成日時', 'Close日時', 'マージ日時', 'マージ者', '関連Issue・PR', 'AI利用結果/DoD回答'];
+    '主担当', '作成者', '所要時間', '作成日時', 'Close日時', 'マージ日時', 'マージ者', '関連Issue・PR', 'AI利用結果/DoD回答'];
   const rows = [headers];
   const add = values => rows.push(headers.map((_, index) => spreadsheetCell(values[index])));
   const s = report.summary;
@@ -121,7 +127,8 @@ function spreadsheetTsv() {
   const {prs, issues, relatedPrs} = reportItems();
   for (const pr of prs.values()) {
     add(['PR', report.milestone, pr.categories.join('・'), pr.number, pr.title, pr.url,
-      ownerNames(pr), creatorName(pr), spreadsheetDate(pr.createdAt), spreadsheetDate(pr.closedAt),
+      ownerNames(pr), creatorName(pr), pr.categories.includes('Close済み担当PR') && pr.durationSeconds != null ? duration(pr.durationSeconds) : '',
+      spreadsheetDate(pr.createdAt), spreadsheetDate(pr.closedAt),
       spreadsheetDate(pr.mergedAt), typeof pr.mergedBy === 'string' ? pr.mergedBy : pr.mergedBy?.login,
       pr.relatedIssues.length ? pr.relatedIssues.map(issue => `Issue #${issue.number}`).join('、') : '関連Issueなし',
       pr.categories.includes('Close済み担当PR') ? spreadsheetAi(pr.number) : '']);
@@ -129,13 +136,13 @@ function spreadsheetTsv() {
   for (const issue of issues.values()) {
     const related = [...(relatedPrs.get(issue.number) || [])].map(number => `PR #${number}`).join('、');
     add(['Issue', report.milestone, issue.categories.join('・'), issue.number, issue.title, issue.url,
-      assigneeNames(issue).join('、') || '未設定', creatorName(issue), spreadsheetDate(issue.createdAt),
+      assigneeNames(issue).join('、') || '未設定', creatorName(issue), '', spreadsheetDate(issue.createdAt),
       spreadsheetDate(issue.closedAt), '', '', related, '']);
   }
   dodQuestions.forEach((question, index) => {
     const row = Array(headers.length).fill('');
     row[0] = 'DoD'; row[1] = report.milestone; row[2] = '自己評価'; row[3] = index + 1;
-    row[4] = question; row[13] = dodLabel(String(index + 1));
+    row[4] = question; row[14] = dodLabel(String(index + 1));
     add(row);
   });
   return rows.map(row => row.join('\t')).join('\n');
@@ -149,7 +156,7 @@ function overviewRows() {
   add(`Close済み担当PR: ${s.closedPrCount}件（うちマージ済み ${s.mergedPrCount}件）`);
   for (const pr of report.closedPullRequests) {
     const status = pr.mergedAt ? '[Merged]' : '[NotMerged]';
-    const timing = `${duration(pr.durationSeconds)}（${pr.mergedAt ? 'マージまで' : 'Closeまで'}）`;
+    const timing = prDurationText(pr);
     const label = `${status}PR #${pr.number} ${pr.title}`;
     add(`${plainLink(label, pr.url)}: ${timing}`, `${link(pr.url, label)}: ${esc(timing)}`, 1);
     for (const issue of pr.relatedIssues || []) {
@@ -215,11 +222,11 @@ function renderDodForm() {
     const targets = index === 0 ? [...report.dodIssues, ...report.dodPullRequests] : index === 1 ? report.dodIssues : index === 2 ? [] : report.closedPullRequests;
     const kind = index === 0 ? 'Issue・PR' : index === 1 ? 'Issue' : index === 2 ? 'コミット' : 'PR';
     const links = targets.map(item => link(item.url, `${item.url?.includes('/pull/') ? 'PR' : 'Issue'}#${item.number}`)).join('、') || '対象なし';
-    const note = index === 2 ? '<p class="meta">自身の全コミットはGit履歴で確認してください。この画面のコミット一覧にはMilestoneのPR外やmainへの直接コミットは表示されません。</p>' : '';
+    const note = index === 2
+      ? `<p class="meta">自身のmainブランチにおける全コミットは${link(`https://github.com/${report.repository}/commits/main/?author=${encodeURIComponent(report.student)}`, 'Git履歴')}で確認してください。この画面のコミット一覧にはMilestoneのPR外やmainへの直接コミットは表示されません。</p>`
+      : '';
     const targetInfo = index === 2 ? '' : `<p class="meta">対象${kind}: ${targets.length}件 — ${links}</p>`;
-    const controls = index === 5
-      ? `<div class="dod-options" data-dod-group="6">${dodOptions[index].map(([value, label]) => `<label class="checkbox"><input type="checkbox" value="${value}" ${report.dodAssessment?.[id]?.choices?.includes(value) ? 'checked' : ''}> ${esc(label)}</label>`).join('')}</div>`
-      : `<div class="select is-fullwidth"><select id="dod-${id}" data-dod="${id}"><option value="">未選択</option>${dodOptions[index].map(([value, label]) => `<option value="${value}" ${report.dodAssessment?.[id]?.choice === value ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></div>`;
+    const controls = `<div class="select is-fullwidth"><select id="dod-${id}" data-dod="${id}"><option value="">未選択</option>${dodOptions[index].map(([value, label]) => `<option value="${value}" ${report.dodAssessment?.[id]?.choice === value ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></div>`;
     return `<div class="dod-item" id="dod-item-${id}"><p class="label">${id}. ${esc(question)}</p>${targetInfo}${note}${controls}<p class="save-status" id="dod-status-${id}" aria-live="polite"></p></div>`;
   }).join('');
 }
@@ -263,7 +270,7 @@ function prRecord(pr, items, {id, editable = false, collapsible = false} = {}) {
   ]);
   const ai = pr.categories.includes('Close済み担当PR')
     ? `<p>AI利用結果: <span data-ai-result="${pr.number}">${esc(spreadsheetAi(pr.number))}</span></p>` : '';
-  const timing = pr.durationSeconds == null ? '' : `<p>所要時間: ${duration(pr.durationSeconds)}（${pr.endSource === 'pr-merged' ? 'マージまで' : 'Closeまで'}）</p>`;
+  const timing = pr.durationSeconds == null ? '' : `<p>所要時間: ${esc(prDurationText(pr))}</p>`;
   const startEnd = pr.startAt ? `<p class="meta">開始: ${esc(pr.startAt)}（${esc(pr.startSource)}）／終了: ${esc(pr.endAt)}（${esc(pr.endSource)}）</p>` : '';
   const body = `<div class="record-content">${fields}<div class="related-items"><h5>関連Issue</h5>${related}</div>${ai}${timing}${startEnd}${editable ? aiControls(pr) : ''}${collapsible ? `<p class="description">${esc(pr.body || '本文なし')}</p>` : ''}</div>`;
   return collapsible
@@ -372,27 +379,6 @@ q('#copy-button').addEventListener('click', async () => {
   }
 });
 q('#dod-form-items').addEventListener('change', async event => {
-  const group = event.target.type === 'checkbox' ? event.target.closest('[data-dod-group]') : null;
-  if (group) {
-    const id = group.dataset.dodGroup, previous = report.dodAssessment?.[id]?.choices || [];
-    const boxes = [...group.querySelectorAll('input[type="checkbox"]')];
-    if (event.target.checked) {
-      const exclusive = ['no_merged', 'reviewed'];
-      for (const box of boxes) if (box !== event.target && (exclusive.includes(event.target.value) || exclusive.includes(box.value))) box.checked = false;
-    }
-    const choices = boxes.filter(box => box.checked).map(box => box.value);
-    const status = q(`#dod-status-${id}`);
-    try {
-      await postJson('/api/dod-assessment', {item: id, choices});
-      report.dodAssessment[id] = choices.length ? {choices} : undefined;
-      status.textContent = '保存しました。';
-      renderOverview();
-    } catch (_) {
-      for (const box of boxes) box.checked = previous.includes(box.value);
-      status.textContent = '保存できませんでした。再試行してください。';
-    }
-    return;
-  }
   const select = event.target.closest('select[data-dod]');
   if (!select) return;
   const id = select.dataset.dod, previous = report.dodAssessment?.[id]?.choice || '';

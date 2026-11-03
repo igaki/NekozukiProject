@@ -162,6 +162,8 @@ esac
   }};
   const previewItem = {kind: 'issue', number: 1, title: '連動Issue', state: 'open', body: '<script>unsafe</script>',
     url: 'https://github.com/example/team/issues/1', author: 'alice', assignees: ['alice'], milestone: 'lec06', labels: [], comments: [], reviews: []};
+  // 表示上の開始根拠を変え、ブランチ作成からマージまでの文言も確認する。
+  data.closedPullRequests[1].startSource = 'reflog';
   vm.runInNewContext(fs.readFileSync(path.join(source, 'weekly-summary-ui.js'), 'utf8'), {
     report: data, document, location: {}, Blob, window: {innerWidth: 1200, innerHeight: 800}, setTimeout, clearTimeout,
     ClipboardItem: class { constructor(items) { this.items = items; } },
@@ -170,9 +172,9 @@ esac
   });
   await elements.get('#copy-button').handlers.click();
   const copiedRows = copiedText.split('\n').map(line => line.split('\t'));
-  assert.ok(copiedRows.every(row => row.length === 14), 'every spreadsheet row must have 14 columns');
+  assert.ok(copiedRows.every(row => row.length === 15), 'every spreadsheet row must have 15 columns');
   assert.deepEqual(copiedRows[0], ['行種別', 'Milestone', '指標・区分', '件数/番号', 'タイトル・設問', 'GitHub URL',
-    '主担当', '作成者', '作成日時', 'Close日時', 'マージ日時', 'マージ者', '関連Issue・PR', 'AI利用結果/DoD回答']);
+    '主担当', '作成者', '所要時間', '作成日時', 'Close日時', 'マージ日時', 'マージ者', '関連Issue・PR', 'AI利用結果/DoD回答']);
   const summaryRows = copiedRows.filter(row => row[0] === '集計');
   assert.deepEqual(summaryRows.map(row => [row[2], Number(row[3])]), [
     ['01 Close済み担当PR', 3], ['02 うちマージ済み', 2], ['03 自分がマージしたPR', 1],
@@ -185,42 +187,49 @@ esac
   assert.equal(pr11Row[2], 'Close済み担当PR・自分がマージしたPR');
   assert.equal(pr11Row[6], 'alice');
   assert.equal(pr11Row[7], 'bob');
-  assert.equal(pr11Row[8], '2026/10/02 09:00');
-  assert.equal(pr11Row[10], '2026/10/04 09:00');
-  assert.equal(pr11Row[11], 'alice');
-  assert.equal(pr11Row[12], 'Issue #5');
-  assert.equal(pr11Row[13], '未選択');
+  assert.equal(pr11Row[8], '23時間0分');
+  assert.equal(pr11Row[9], '2026/10/02 09:00');
+  assert.equal(pr11Row[11], '2026/10/04 09:00');
+  assert.equal(pr11Row[12], 'alice');
+  assert.equal(pr11Row[13], 'Issue #5');
+  assert.equal(pr11Row[14], '未選択');
+  assert.equal(copiedRows.find(row => row[0] === 'PR' && row[3] === '14')[8], '1日0分');
+  assert.equal(copiedRows.find(row => row[0] === 'PR' && row[3] === '12')[8], '');
   const issue2Row = copiedRows.find(row => row[0] === 'Issue' && row[3] === '2');
   assert.equal(issue2Row[2], 'PR関連Issue・手動Close Issue');
   assert.equal(issue2Row[6], 'alice');
   assert.equal(issue2Row[7], 'bob');
-  assert.equal(issue2Row[12], 'PR #10');
+  assert.equal(issue2Row[8], '');
+  assert.equal(issue2Row[13], 'PR #10');
   assert.equal(copiedRows.filter(row => row[0] === 'Issue' && row[3] === '3').length, 1);
   const issue4Row = copiedRows.find(row => row[0] === 'Issue' && row[3] === '4');
   assert.equal(issue4Row[2], 'PR関連Issue・全体のOpen Issue');
-  assert.equal(issue4Row[12], 'PR #12');
-  assert.equal(copiedRows.find(row => row[0] === 'PR' && row[3] === '12')[12], 'Issue #4');
+  assert.equal(issue4Row[13], 'PR #12');
+  assert.equal(copiedRows.find(row => row[0] === 'PR' && row[3] === '12')[13], 'Issue #4');
   assert.equal(copiedRows.find(row => row[0] === 'PR' && row[3] === '13')[1], 'lec06');
   assert.deepEqual(copiedRows.slice(-6).map(row => row[3]), ['1', '2', '3', '4', '5', '6']);
-  assert.equal(copiedRows.at(-1)[13], '未選択');
+  assert.equal(copiedRows.at(-1)[14], '未選択');
   data.aiUsage['10'] = {choices: ['plan-issues', 'debug'], other: ''};
   data.dodAssessment['1'] = {choice: 'correct'};
   await elements.get('#copy-button').handlers.click();
   const answeredRows = copiedText.split('\n').map(line => line.split('\t'));
-  assert.equal(answeredRows.find(row => row[0] === 'PR' && row[3] === '10')[13], 'plan-issues; debug');
-  assert.equal(answeredRows.find(row => row[0] === 'DoD' && row[3] === '1')[13], '正しく設定されている');
+  assert.equal(answeredRows.find(row => row[0] === 'PR' && row[3] === '10')[14], 'plan-issues; debug');
+  assert.equal(answeredRows.find(row => row[0] === 'DoD' && row[3] === '1')[14], '正しく設定されている');
   delete data.aiUsage['10'];
   delete data.dodAssessment['1'];
   const originalTitle = data.closedPullRequests[0].title;
   data.closedPullRequests[0].title = '=HYPERLINK("unsafe")\t危険\n続き';
   await elements.get('#copy-button').handlers.click();
   const escapedRows = copiedText.split('\n').map(line => line.split('\t'));
-  assert.ok(escapedRows.every(row => row.length === 14));
+  assert.ok(escapedRows.every(row => row.length === 15));
   assert.match(escapedRows.find(row => row[0] === 'PR' && row[3] === '10')[4], /^'=HYPERLINK\("unsafe"\) 危険 続き$/);
   data.closedPullRequests[0].title = originalTitle;
   assert.match(elements.get('#overview-text').innerHTML, /Close済み担当PR: 3件/);
   assert.match(elements.get('#overview-text').innerHTML, /\[Open\]Issue #3/);
   assert.match(elements.get('#overview-text').innerHTML, /\[NotMerged\]PR #14/);
+  assert.match(elements.get('#overview-text').innerHTML, /23時間0分（最初のコミットからマージまで）/);
+  assert.match(elements.get('#overview-text').innerHTML, /23時間0分（ブランチ作成からマージまで）/);
+  assert.match(elements.get('#overview-text').innerHTML, /1日0分（PR作成からCloseまで）/);
   assert.match(elements.get('#overview-text').innerHTML, /関連Issueなし/);
   assert.match(elements.get('#overview-text').innerHTML, /PR #11 \[alice\]/);
   assert.match(elements.get('#overview-text').innerHTML, /Open PR: 2件/);
@@ -243,12 +252,25 @@ esac
   ];
   const dodHtml = elements.get('#dod-form-items').innerHTML;
   for (const question of expectedDodQuestions) assert.ok(dodHtml.includes(question), question);
-  assert.equal((dodHtml.match(/data-dod=/g) || []).length, 5);
-  assert.match(dodHtml, /data-dod-group="6"/);
+  assert.equal((dodHtml.match(/data-dod=/g) || []).length, 6);
+  assert.doesNotMatch(dodHtml, /data-dod-group=|type="checkbox"/);
+  const optionValues = number => {
+    const start = dodHtml.indexOf(`id="dod-item-${number}"`);
+    const end = number < 6 ? dodHtml.indexOf(`id="dod-item-${number + 1}"`) : dodHtml.length;
+    return [...dodHtml.slice(start, end).matchAll(/<option value="([^"]*)"/g)].map(match => match[1]);
+  };
+  assert.deepEqual(optionValues(1), ['', 'correct', 'incorrect', 'no_assigned']);
+  assert.deepEqual(optionValues(2), ['', 'correct', 'incorrect', 'no_assigned']);
+  assert.deepEqual(optionValues(3), ['', 'no_direct_main', 'direct_main']);
+  assert.deepEqual(optionValues(4), ['', 'complete', 'missing', 'no_assigned']);
+  assert.deepEqual(optionValues(5), ['', 'complete', 'missing', 'no_assigned']);
+  assert.deepEqual(optionValues(6), ['', 'reviewed', 'same_reviewer', 'no_review_result', 'no_merged']);
   assert.match(dodHtml, /対象Issue・PR: 6件/);
   assert.doesNotMatch(dodHtml, /担当したIssueがなかった/);
+  assert.doesNotMatch(dodHtml, /全くコミットしていない/);
   assert.match(dodHtml, /PRの担当者とレビュアーが共通のPRがある/);
-  assert.match(dodHtml, /自身の全コミットはGit履歴で確認/);
+  assert.match(dodHtml, /担当PRが存在しないか，担当PRがマージされていない/);
+  assert.match(dodHtml, /自身のmainブランチにおける全コミットは<a href="https:\/\/github\.com\/example\/team\/commits\/main\/\?author=alice"[^>]*>Git履歴<\/a>で確認してください/);
   assert.match(elements.get('#ai-warning').innerHTML, /AI利用が未選択のClose済み担当PRが3件/);
   assert.match(elements.get('#ai-warning').innerHTML, /href="#pr-10"/);
   assert.match(elements.get('#dod-warning').innerHTML, /DoD自己評価が未選択の項目が6件/);
@@ -273,6 +295,9 @@ esac
   assert.match(closedDetails, /区分<\/dt><dd>Close済み担当PR・自分がマージしたPR<\/dd>/);
   assert.match(closedDetails, /作成日時（日本時間）<\/dt><dd>2026\/10\/02 09:00<\/dd>/);
   assert.match(closedDetails, /マージ日時（日本時間）<\/dt><dd>2026\/10\/04 09:00<\/dd>/);
+  assert.match(closedDetails, /所要時間: 23時間0分（最初のコミットからマージまで）/);
+  assert.match(closedDetails, /所要時間: 23時間0分（ブランチ作成からマージまで）/);
+  assert.match(closedDetails, /所要時間: 1日0分（PR作成からCloseまで）/);
   assert.match(closedDetails, /AI利用結果: <span data-ai-result="11">未選択<\/span>/);
   const issue2Details = closedDetails.slice(closedDetails.indexOf('https://github.com/example/team/issues/2'));
   assert.match(issue2Details.slice(0, 1200), /主担当<\/dt><dd>alice<\/dd>/);
@@ -325,16 +350,14 @@ esac
   assert.match(elements.get('#overview-text').innerHTML, /1\. 正しく設定されている/);
   assert.match(elements.get('#dod-warning').innerHTML, /未選択の項目が5件/);
   assert.doesNotMatch(elements.get('#dod-warning').innerHTML, /href="#dod-item-1"/);
-  const boxes = ['no_merged', 'reviewed', 'same_reviewer', 'no_review_result'].map(value => ({value, checked: false}));
-  const group = {dataset: {dodGroup: '6'}, querySelectorAll: () => boxes};
-  for (const value of ['same_reviewer', 'no_review_result']) {
-    const box = boxes.find(item => item.value === value);
-    box.type = 'checkbox'; box.checked = true; box.closest = () => group;
-    await elements.get('#dod-form-items').handlers.change({target: box});
-  }
-  assert.match(elements.get('#overview-text').innerHTML, /6\. PRの担当者とレビュアーが共通のPRがある、PRの担当者とレビュアーは異なるがレビュー結果が記載されていない/);
+  const reviewSelect = {dataset: {dod: '6'}, value: 'same_reviewer', disabled: false};
+  await elements.get('#dod-form-items').handlers.change({target: {type: 'select-one', closest: () => reviewSelect}});
+  assert.match(elements.get('#overview-text').innerHTML, /6\. PRの担当者とレビュアーが共通のPRがある/);
   assert.match(elements.get('#dod-warning').innerHTML, /未選択の項目が4件/);
   assert.doesNotMatch(elements.get('#dod-warning').innerHTML, /href="#dod-item-6"/);
+  await elements.get('#copy-button').handlers.click();
+  assert.equal(copiedText.split('\n').map(line => line.split('\t')).find(row => row[0] === 'DoD' && row[3] === '6')[14],
+    'PRの担当者とレビュアーが共通のPRがある');
   const htmlPath = path.join(repo, 'docs', 'weekly-summary_alice.html');
   const dataPath = path.join(dataDir, firstFile);
   const generatedHtml = fs.readFileSync(htmlPath, 'utf8');
@@ -394,15 +417,15 @@ switch ($endpoint) {
     assert.equal(dodResponse.status, 200, await dodResponse.text());
     assert.equal((await post('/api/dod-assessment', {item: '7', choice: 'all'})).status, 400);
     assert.equal((await post('/api/dod-assessment', {item: '2', choice: 'direct_main'})).status, 400);
-    assert.equal((await post('/api/dod-assessment', {item: '6', choices: []})).status, 200);
-    assert.equal((await post('/api/dod-assessment', {item: '6', choices: ['same_reviewer', 'no_review_result']})).status, 200);
-    assert.equal((await post('/api/dod-assessment', {item: '6', choices: ['reviewed', 'no_review_result']})).status, 400);
+    assert.equal((await post('/api/dod-assessment', {item: '3', choice: 'no_commits'})).status, 400);
+    assert.equal((await post('/api/dod-assessment', {item: '6', choices: ['same_reviewer', 'no_review_result']})).status, 400);
+    assert.equal((await post('/api/dod-assessment', {item: '6', choice: 'same_reviewer'})).status, 200);
     const aiResponse = await post('/api/ai-usage', {pr: '10', choices: ['debug', 'other'], other: '相談した'});
     assert.equal(aiResponse.status, 200, await aiResponse.text());
     assert.equal((await post('/api/ai-usage', {pr: '10', choices: ['none', 'debug'], other: ''})).status, 400);
     const saved = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
     assert.equal(saved.dodAssessment['1'].choice, 'correct');
-    assert.deepEqual(saved.dodAssessment['6'].choices, ['same_reviewer', 'no_review_result']);
+    assert.equal(saved.dodAssessment['6'].choice, 'same_reviewer');
     assert.deepEqual(saved.aiUsage['10'].choices, ['debug', 'other']);
     assert.equal(saved.aiUsage['10'].other, '相談した');
     assert.match(await (await fetch(base)).text(), /相談した/);
@@ -416,7 +439,7 @@ switch ($endpoint) {
   assert.deepEqual(backupData.aiUsage['10'].choices, ['debug', 'other']);
   const secondData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
   assert.equal(secondData.dodAssessment['1'].choice, 'correct');
-  assert.deepEqual(secondData.dodAssessment['6'].choices, ['same_reviewer', 'no_review_result']);
+  assert.equal(secondData.dodAssessment['6'].choice, 'same_reviewer');
   assert.deepEqual(secondData.aiUsage['10'].choices, ['debug', 'other']);
   const htmlBeforeFailure = fs.readFileSync(htmlPath, 'utf8');
   for (const kind of ['PR', 'Issue']) {

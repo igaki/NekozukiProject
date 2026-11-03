@@ -67,33 +67,22 @@ function Save-DodAssessment($requestBody) {
   $update = $requestBody | ConvertFrom-Json
   $item = [string]$update.item
   if ($item -notmatch '^[1-6]$') { throw 'Invalid DoD item.' }
+  if ($update.PSObject.Properties.Name -contains 'choices') { throw 'Invalid DoD choices.' }
   $data = Read-ReportData
-  if ($item -eq '6') {
-    $allowed = 'no_merged', 'reviewed', 'same_reviewer', 'no_review_result'
-    $choices = @($update.choices)
-    if ($choices.Count -gt 2 -or @($choices | Select-Object -Unique).Count -ne $choices.Count) { throw 'Invalid DoD choices.' }
-    foreach ($choice in $choices) { if ($allowed -notcontains $choice) { throw 'Invalid DoD choice.' } }
-    if ($choices.Count -gt 1 -and ($choices -contains 'no_merged' -or $choices -contains 'reviewed')) { throw 'Conflicting DoD choices.' }
-    if ($choices.Count -eq 0) { $data.dodAssessment.PSObject.Properties.Remove($item) }
-    else {
-      $entry = [pscustomobject]@{ choices = $choices; updatedAt = (Get-Date).ToString('o') }
-      $data.dodAssessment | Add-Member -MemberType NoteProperty -Name $item -Value $entry -Force
-    }
-  } else {
-    $allowed = switch ($item) {
-      '1' { 'no_assigned', 'correct', 'incorrect' }
-      '2' { 'no_assigned', 'correct', 'incorrect' }
-      '3' { 'no_commits', 'no_direct_main', 'direct_main' }
-      '4' { 'no_assigned', 'complete', 'missing' }
-      '5' { 'no_assigned', 'complete', 'missing' }
-    }
-    $choice = [string]$update.choice
-    if ($choice -ne '' -and $allowed -notcontains $choice) { throw 'Invalid DoD choice.' }
-    if ($choice -eq '') { $data.dodAssessment.PSObject.Properties.Remove($item) }
-    else {
-      $entry = [pscustomobject]@{ choice = $choice; updatedAt = (Get-Date).ToString('o') }
-      $data.dodAssessment | Add-Member -MemberType NoteProperty -Name $item -Value $entry -Force
-    }
+  $allowed = switch ($item) {
+    '1' { 'correct', 'incorrect', 'no_assigned' }
+    '2' { 'correct', 'incorrect', 'no_assigned' }
+    '3' { 'no_direct_main', 'direct_main' }
+    '4' { 'complete', 'missing', 'no_assigned' }
+    '5' { 'complete', 'missing', 'no_assigned' }
+    '6' { 'reviewed', 'same_reviewer', 'no_review_result', 'no_merged' }
+  }
+  $choice = [string]$update.choice
+  if ($choice -ne '' -and $allowed -notcontains $choice) { throw 'Invalid DoD choice.' }
+  if ($choice -eq '') { $data.dodAssessment.PSObject.Properties.Remove($item) }
+  else {
+    $entry = [pscustomobject]@{ choice = $choice; updatedAt = (Get-Date).ToString('o') }
+    $data.dodAssessment | Add-Member -MemberType NoteProperty -Name $item -Value $entry -Force
   }
   Write-ReportData $data
 }
