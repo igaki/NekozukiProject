@@ -222,7 +222,9 @@ function renderDodForm() {
     const targets = index === 0 ? [...report.dodIssues, ...report.dodPullRequests] : index === 1 ? report.dodIssues : index === 2 ? [] : report.closedPullRequests;
     const kind = index === 0 ? 'Issue・PR' : index === 1 ? 'Issue' : index === 2 ? 'コミット' : 'PR';
     const links = targets.map(item => link(item.url, `${item.url?.includes('/pull/') ? 'PR' : 'Issue'}#${item.number}`)).join('、') || '対象なし';
-    const note = index === 2 ? '<p class="meta">自身の全コミットはGit履歴で確認してください。この画面のコミット一覧にはMilestoneのPR外やmainへの直接コミットは表示されません。</p>' : '';
+    const note = index === 2
+      ? `<p class="meta">自身のmainブランチにおける全コミットは${link(`https://github.com/${report.repository}/commits/main/?author=${encodeURIComponent(report.student)}`, 'Git履歴')}で確認してください。この画面のコミット一覧にはMilestoneのPR外やmainへの直接コミットは表示されません。</p>`
+      : '';
     const targetInfo = index === 2 ? '' : `<p class="meta">対象${kind}: ${targets.length}件 — ${links}</p>`;
     const controls = `<div class="select is-fullwidth"><select id="dod-${id}" data-dod="${id}"><option value="">未選択</option>${dodOptions[index].map(([value, label]) => `<option value="${value}" ${report.dodAssessment?.[id]?.choice === value ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></div>`;
     return `<div class="dod-item" id="dod-item-${id}"><p class="label">${id}. ${esc(question)}</p>${targetInfo}${note}${controls}<p class="save-status" id="dod-status-${id}" aria-live="polite"></p></div>`;

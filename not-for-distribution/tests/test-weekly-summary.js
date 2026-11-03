@@ -270,7 +270,7 @@ esac
   assert.doesNotMatch(dodHtml, /全くコミットしていない/);
   assert.match(dodHtml, /PRの担当者とレビュアーが共通のPRがある/);
   assert.match(dodHtml, /担当PRが存在しないか，担当PRがマージされていない/);
-  assert.match(dodHtml, /自身の全コミットはGit履歴で確認/);
+  assert.match(dodHtml, /自身のmainブランチにおける全コミットは<a href="https:\/\/github\.com\/example\/team\/commits\/main\/\?author=alice"[^>]*>Git履歴<\/a>で確認してください/);
   assert.match(elements.get('#ai-warning').innerHTML, /AI利用が未選択のClose済み担当PRが3件/);
   assert.match(elements.get('#ai-warning').innerHTML, /href="#pr-10"/);
   assert.match(elements.get('#dod-warning').innerHTML, /DoD自己評価が未選択の項目が6件/);
